@@ -34,7 +34,8 @@ class UploadSpec extends AbstractMicronautSpec {
 
     @Override
     Map<String, Object> getConfiguration() {
-        ['micronaut.server.multipart.maxFileSize': '1KB']
+        ['micronaut.server.multipart.maxFileSize': '1KB',
+        'micronaut.server.netty.logLevel':'TRACE']
     }
 
     void "test simple in-memory file upload with JSON"() {
