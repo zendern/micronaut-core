@@ -17,6 +17,7 @@
 package io.micronaut.discovery;
 
 import io.micronaut.core.convert.value.ConvertibleValues;
+import io.micronaut.core.util.URIUtils;
 import io.micronaut.core.util.StringUtils;
 import io.micronaut.health.HealthStatus;
 
@@ -147,9 +148,9 @@ public interface ServiceInstance {
         }
         String rawQuery = thisUri.getRawQuery();
         if (StringUtils.isNotEmpty(rawQuery)) {
-            return thisUri.resolve(relativeURI + "?" + rawQuery);
+            return URIUtils.resolve(thisUri, relativeURI + "?" + rawQuery);
         } else {
-            return thisUri.resolve(relativeURI);
+            return URIUtils.resolve(thisUri, relativeURI);
         }
     }
 
