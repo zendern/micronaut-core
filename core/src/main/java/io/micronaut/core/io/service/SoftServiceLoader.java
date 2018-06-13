@@ -22,15 +22,9 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.URL;
-import java.util.Enumeration;
-import java.util.Iterator;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.NoSuchElementException;
-import java.util.Optional;
-import java.util.ServiceConfigurationError;
+import java.util.*;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 /**
@@ -56,9 +50,26 @@ public final class SoftServiceLoader<S> implements Iterable<ServiceDefinition<S>
 
     private SoftServiceLoader(Class<S> serviceType, ClassLoader classLoader, Predicate<String> condition) {
         this.serviceType = serviceType;
-        this.classLoader = classLoader == null ? ClassLoader.getSystemClassLoader() : classLoader;
-        this.unloadedServices = new ServiceLoaderIterator();
+        this.classLoader = resolveClassLoader(classLoader);
+
+        if (classLoader != null) {
+            this.unloadedServices = new ServiceLoaderIterator();
+        } else {
+            this.unloadedServices = new DefaultLoaderIterator();
+        }
         this.condition = condition == null ? (String name) -> true : condition;
+    }
+
+    private ClassLoader resolveClassLoader(ClassLoader classLoader) {
+        if (classLoader == null) {
+            classLoader = ClassLoader.getSystemClassLoader();
+            // GraalVM returns null for system classloader
+            if (classLoader == null) {
+                classLoader = getClass().getClassLoader();
+            }
+
+        }
+        return classLoader;
     }
 
     /**
@@ -174,6 +185,69 @@ public final class SoftServiceLoader<S> implements Iterable<ServiceDefinition<S>
     @SuppressWarnings("unchecked")
     protected ServiceDefinition<S> newService(String name, Optional<Class> loadedClass) {
         return new DefaultServiceDefinition(name, loadedClass);
+    }
+
+    /**
+     * A service loader used in the case where soft loading is not possible.
+     */
+    private final class DefaultLoaderIterator implements Iterator<ServiceDefinition<S>> {
+
+        Iterator<S> serviceLoaders = ServiceLoader.load(serviceType).iterator();
+
+        @Override
+        public boolean hasNext() {
+            return serviceLoaders.hasNext();
+        }
+
+        @Override
+        public ServiceDefinition<S> next() {
+            try {
+                S next = serviceLoaders.next();
+                return new ServiceDefinition<S>() {
+                    @Override
+                    public String getName() {
+                        return next.getClass().getName();
+                    }
+
+                    @Override
+                    public boolean isPresent() {
+                        return true;
+                    }
+
+                    @Override
+                    public <X extends Throwable> S orElseThrow(Supplier<? extends X> exceptionSupplier) throws X {
+                        return next;
+                    }
+
+                    @Override
+                    public S load() {
+                        return next;
+                    }
+                };
+            } catch (Throwable e) {
+                return new ServiceDefinition<S>() {
+                    @Override
+                    public String getName() {
+                        return serviceType.getName();
+                    }
+
+                    @Override
+                    public boolean isPresent() {
+                        return false;
+                    }
+
+                    @Override
+                    public <X extends Throwable> S orElseThrow(Supplier<? extends X> exceptionSupplier) throws X {
+                        throw exceptionSupplier.get();
+                    }
+
+                    @Override
+                    public S load() {
+                        throw new ServiceConfigurationError("Service could not be loaded: " + e.getMessage(), e);
+                    }
+                };
+            }
+        }
     }
 
     /**

@@ -22,6 +22,7 @@ import io.micronaut.context.DefaultApplicationContextBuilder;
 import io.micronaut.context.env.Environment;
 import io.micronaut.context.env.PropertySource;
 import io.micronaut.core.cli.CommandLine;
+import io.micronaut.inject.BeanDefinitionReference;
 import io.micronaut.runtime.context.env.CommandLinePropertySource;
 import io.micronaut.runtime.exceptions.ApplicationStartupException;
 import io.micronaut.runtime.server.EmbeddedServer;
@@ -56,6 +57,18 @@ public class Micronaut extends DefaultApplicationContextBuilder implements Appli
      */
     @Override
     public ApplicationContext start() {
+        Properties properties = System.getProperties();
+
+        for (Map.Entry<Object, Object> entry : properties.entrySet()) {
+            System.out.println("entry = " + entry);
+        }
+
+        ServiceLoader<BeanDefinitionReference> services = ServiceLoader.load(BeanDefinitionReference.class);
+        System.out.println("services.iterator().hasNext() = " + services.iterator().hasNext());
+
+        System.out.println("getClass().getResource(\"/application.yml\") = " + getClass().getResource("/application.yml"));
+
+
         CommandLine commandLine = CommandLine.parse(args);
         propertySources(new CommandLinePropertySource(commandLine));
         ApplicationContext applicationContext = super.build();

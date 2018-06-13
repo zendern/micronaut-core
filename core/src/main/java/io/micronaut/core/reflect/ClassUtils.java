@@ -18,6 +18,7 @@ package io.micronaut.core.reflect;
 
 import io.micronaut.core.util.ArrayUtils;
 
+import javax.annotation.Nullable;
 import java.util.*;
 
 /**
@@ -137,13 +138,18 @@ public class ClassUtils {
      * @param classLoader The classloader
      * @return An optional of the class
      */
-    public static Optional<Class> forName(String name, ClassLoader classLoader) {
+    public static Optional<Class> forName(String name, @Nullable ClassLoader classLoader) {
         try {
             Optional<Class> commonType = Optional.ofNullable(COMMON_CLASS_MAP.get(name));
             if (commonType.isPresent()) {
                 return commonType;
             } else {
-                return Optional.of(Class.forName(name, true, classLoader));
+                if (classLoader != null) {
+                    return Optional.of(Class.forName(name, true, classLoader));
+                }
+                else {
+                    return Optional.of(Class.forName(name));
+                }
             }
         } catch (ClassNotFoundException | NoClassDefFoundError e) {
             return Optional.empty();

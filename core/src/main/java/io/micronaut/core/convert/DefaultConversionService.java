@@ -69,6 +69,7 @@ import java.util.StringJoiner;
 import java.util.TimeZone;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executor;
 import java.util.function.Function;
 
 /**
@@ -82,6 +83,8 @@ public class DefaultConversionService implements ConversionService<DefaultConver
     private static final int CACHE_MAX = 60;
     private final Map<ConvertiblePair, TypeConverter> typeConverters = new ConcurrentHashMap<>();
     private final Cache<ConvertiblePair, TypeConverter> converterCache = Caffeine.newBuilder()
+                                                                                  // override the executor for GraalVM
+                                                                                 .executor(Runnable::run)
                                                                                  .maximumSize(CACHE_MAX)
                                                                                  .build();
 
