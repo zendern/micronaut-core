@@ -34,6 +34,8 @@ import io.micronaut.core.convert.ConversionService;
 import io.micronaut.core.convert.value.ConvertibleValues;
 import io.micronaut.core.io.ResourceLoader;
 import io.micronaut.core.io.scan.ClassPathResourceLoader;
+import io.micronaut.core.io.service.ServiceDefinition;
+import io.micronaut.core.io.service.SoftServiceLoader;
 import io.micronaut.core.io.service.StreamSoftServiceLoader;
 import io.micronaut.core.naming.Named;
 import io.micronaut.core.order.OrderUtil;
@@ -920,7 +922,20 @@ public class DefaultBeanContext implements BeanContext {
      * @return The bean definition classes
      */
     protected List<BeanDefinitionReference> resolveBeanDefinitionReferences() {
-        return StreamSoftServiceLoader.loadPresentParallel(BeanDefinitionReference.class, classLoader).collect(Collectors.toList());
+        if (classLoader != null) {
+            return StreamSoftServiceLoader.loadPresentParallel(BeanDefinitionReference.class, classLoader).collect(Collectors.toList());
+        }
+        else {
+            List<BeanDefinitionReference> references = new ArrayList<>();
+            SoftServiceLoader<BeanDefinitionReference> serviceDefinitions = SoftServiceLoader.load(BeanDefinitionReference.class);
+            for (ServiceDefinition<BeanDefinitionReference> definition : serviceDefinitions) {
+                if (definition.isPresent()) {
+                    BeanDefinitionReference reference = definition.load();
+                    references.add(reference);
+                }
+            }
+            return references;
+        }
     }
 
     /**
@@ -929,7 +944,12 @@ public class DefaultBeanContext implements BeanContext {
      * @return The bean definition classes
      */
     protected Iterable<BeanConfiguration> resolveBeanConfigurations() {
-        return ServiceLoader.load(BeanConfiguration.class, classLoader);
+        if (classLoader != null) {
+            return ServiceLoader.load(BeanConfiguration.class, classLoader);
+        }
+        else {
+            return ServiceLoader.load(BeanConfiguration.class);
+        }
     }
 
     /**

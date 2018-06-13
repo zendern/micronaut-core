@@ -19,11 +19,13 @@ package io.micronaut.core.io.scan;
 import io.micronaut.core.io.ResourceLoader;
 import io.micronaut.core.util.StringUtils;
 
+import javax.annotation.Nullable;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
 import java.util.Enumeration;
 import java.util.Optional;
+import java.util.function.Function;
 import java.util.stream.Stream;
 
 /**
@@ -42,7 +44,7 @@ public class DefaultClassPathResourceLoader implements ClassPathResourceLoader {
      *
      * @param classLoader The class loader for loading resources
      */
-    public DefaultClassPathResourceLoader(ClassLoader classLoader) {
+    public DefaultClassPathResourceLoader(@Nullable ClassLoader classLoader) {
         this(classLoader, null);
     }
 
@@ -52,7 +54,7 @@ public class DefaultClassPathResourceLoader implements ClassPathResourceLoader {
      * @param classLoader The class loader for loading resources
      * @param basePath    The path to look for resources under
      */
-    public DefaultClassPathResourceLoader(ClassLoader classLoader, String basePath) {
+    public DefaultClassPathResourceLoader(@Nullable ClassLoader classLoader, String basePath) {
         this.classLoader = classLoader;
         this.basePath = normalize(basePath);
     }
@@ -64,7 +66,12 @@ public class DefaultClassPathResourceLoader implements ClassPathResourceLoader {
      * @return An optional resource
      */
     public Optional<InputStream> getResourceAsStream(String path) {
-        return Optional.ofNullable(classLoader.getResourceAsStream(prefixPath(path)));
+        String resolvedPath = prefixPath(path);
+        if (classLoader != null) {
+            return Optional.ofNullable(classLoader.getResourceAsStream(resolvedPath));
+        } else {
+            return Optional.ofNullable(DefaultClassPathResourceLoader.class.getResourceAsStream("/" + resolvedPath));
+        }
     }
 
     /**
@@ -74,7 +81,12 @@ public class DefaultClassPathResourceLoader implements ClassPathResourceLoader {
      * @return An optional resource
      */
     public Optional<URL> getResource(String path) {
-        return Optional.ofNullable(classLoader.getResource(prefixPath(path)));
+        String resolvedPath = prefixPath(path);
+        if (classLoader != null) {
+            return Optional.ofNullable(classLoader.getResource(resolvedPath));
+        } else {
+            return Optional.ofNullable(DefaultClassPathResourceLoader.class.getResource("/" + resolvedPath));
+        }
     }
 
     /**
@@ -84,18 +96,26 @@ public class DefaultClassPathResourceLoader implements ClassPathResourceLoader {
      * @return A resource stream
      */
     public Stream<URL> getResources(String path) {
-        Enumeration<URL> all;
-        try {
-            all = classLoader.getResources(prefixPath(path));
-        } catch (IOException e) {
-            return Stream.empty();
+
+        if (classLoader != null) {
+            Enumeration<URL> all;
+            try {
+                String resolvedpath = prefixPath(path);
+                all = classLoader.getResources(resolvedpath);
+            } catch (IOException e) {
+                return Stream.empty();
+            }
+            Stream.Builder<URL> builder = Stream.builder();
+            while (all.hasMoreElements()) {
+                URL url = all.nextElement();
+                builder.accept(url);
+            }
+            return builder.build();
         }
-        Stream.Builder<URL> builder = Stream.<URL>builder();
-        while (all.hasMoreElements()) {
-            URL url = all.nextElement();
-            builder.accept(url);
+        else {
+            Optional<URL> resource = getResource(path);
+            return resource.map(Stream::of).orElse(Stream.empty());
         }
-        return builder.build();
     }
 
     /**

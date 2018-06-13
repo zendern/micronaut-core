@@ -66,6 +66,10 @@ public class Micronaut extends DefaultApplicationContextBuilder implements Appli
         ServiceLoader<BeanDefinitionReference> services = ServiceLoader.load(BeanDefinitionReference.class);
         System.out.println("services.iterator().hasNext() = " + services.iterator().hasNext());
 
+        for (BeanDefinitionReference beanDefinitionReference : services) {
+            System.out.println("beanDefinitionReference = " + beanDefinitionReference);
+        }
+
         System.out.println("getClass().getResource(\"/application.yml\") = " + getClass().getResource("/application.yml"));
 
 

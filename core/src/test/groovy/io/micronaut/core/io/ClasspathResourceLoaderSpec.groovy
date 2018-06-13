@@ -28,6 +28,30 @@ class ClasspathResourceLoaderSpec extends Specification {
 
         expect:
         loader.getResource(resource).get().text == "bar.txt"
+        loader.getResourceAsStream(resource).get().text == 'bar.txt'
+        loader.getResources(resource).findFirst().isPresent()
+
+        where:
+        base             | resource
+        null             | "foo/bar.txt"
+        null             | "classpath:foo/bar.txt"
+        "foo"            | "bar.txt"
+        "/foo"           | "bar.txt"
+        "classpath:foo"  | "bar.txt"
+        "classpath:foo"  | "classpath:bar.txt"
+        "classpath:/foo" | "classpath:bar.txt"
+        "classpath:/foo" | "classpath:/bar.txt"
+        "classpath:foo"  | "classpath:/bar.txt"
+    }
+
+    void "test resolving a resource with null classloader"() {
+        given:
+        ClassPathResourceLoader loader = new DefaultClassPathResourceLoader(null, base)
+
+        expect:
+        loader.getResource(resource).get().text == "bar.txt"
+        loader.getResourceAsStream(resource).get().text == 'bar.txt'
+        loader.getResources(resource).findFirst().isPresent()
 
         where:
         base             | resource
