@@ -8,6 +8,7 @@ dependencies {
     testCompile project(":inject-groovy")
     testCompile project(":inject-java")
     testCompile project(":http-client")
+    testCompile project(":configurations:jackson-xml")
     testCompile dependencyModuleVersion("groovy", "groovy-json")
     testCompile dependencyVersion("rxjava2")
     testCompile dependencyVersion("reactor")

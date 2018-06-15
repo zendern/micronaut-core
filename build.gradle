@@ -64,6 +64,16 @@ ext {
                     name:'jackson-datatype-jdk8',
                     modules:['jackson-datatype-jsr310']
             ],
+            'jackson.dataformat': [
+                version: jacksonVersion,
+                group  : 'com.fasterxml.jackson.dataformat',
+                name   : 'jackson-dataformat-xml'
+            ],
+            'woodstox': [
+                version: woodstoxVersion,
+                group  : 'com.fasterxml.woodstox',
+                name   : 'woodstox-core'
+            ],
             jsr305:[
                     version:jsr305Version,
                     group:'com.google.code.findbugs',

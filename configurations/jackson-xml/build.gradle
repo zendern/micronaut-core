@@ -1,0 +1,7 @@
+dependencies {
+    compile project(":inject")
+    compile project(":http")
+    compile dependencyVersion("jackson.dataformat")
+    compile dependencyVersion("woodstox")
+    compileOnly project(":inject-java")
+}
