@@ -19,6 +19,7 @@ package io.micronaut.ast.groovy.visitor;
 import io.micronaut.core.annotation.AnnotationMetadata;
 import io.micronaut.inject.visitor.ClassElement;
 import org.codehaus.groovy.ast.ClassNode;
+import org.codehaus.groovy.ast.InnerClassNode;
 
 import java.lang.reflect.Modifier;
 
@@ -79,5 +80,10 @@ public class GroovyClassElement extends AbstractGroovyElement implements ClassEl
     @Override
     public Object getNativeType() {
         return classNode;
+    }
+
+    @Override
+    public boolean isInnerClass() {
+        return classNode instanceof InnerClassNode;
     }
 }

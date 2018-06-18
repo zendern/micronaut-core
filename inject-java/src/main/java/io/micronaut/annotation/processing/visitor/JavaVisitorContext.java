@@ -19,8 +19,12 @@ package io.micronaut.annotation.processing.visitor;
 import io.micronaut.inject.visitor.VisitorContext;
 
 import javax.annotation.processing.Messager;
+import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.Element;
 import javax.tools.Diagnostic;
+import javax.tools.JavaFileManager;
+import javax.tools.StandardLocation;
+import java.io.Writer;
 
 /**
  * The visitor context when visiting Java code.
@@ -31,23 +35,40 @@ import javax.tools.Diagnostic;
 public class JavaVisitorContext implements VisitorContext {
 
     private final Messager messager;
+    private final ProcessingEnvironment processingEnvironment;
 
     /**
-     * @param messager The {@link Messager}
+     * @param processingEnvironment The {@link ProcessingEnvironment}
      */
-    public JavaVisitorContext(Messager messager) {
-        this.messager = messager;
+    public JavaVisitorContext(ProcessingEnvironment processingEnvironment) {
+        this.processingEnvironment = processingEnvironment;
+        this.messager = processingEnvironment.getMessager();
     }
 
     @Override
     public void fail(String message, io.micronaut.inject.visitor.Element element) {
-        Element el = (Element) element.getNativeType();
-        messager.printMessage(Diagnostic.Kind.ERROR, message, el);
+        if (element != null) {
+            Element el = (Element) element.getNativeType();
+            messager.printMessage(Diagnostic.Kind.ERROR, message, el);
+        } else {
+            messager.printMessage(Diagnostic.Kind.ERROR, message);
+        }
     }
 
     @Override
     public void warn(String message, io.micronaut.inject.visitor.Element element) {
-        Element el = (Element) element.getNativeType();
-        messager.printMessage(Diagnostic.Kind.WARNING, message, el);
+        if (element != null) {
+            Element el = (Element) element.getNativeType();
+            messager.printMessage(Diagnostic.Kind.WARNING, message, el);
+        } else {
+            messager.printMessage(Diagnostic.Kind.WARNING, message);
+        }
+    }
+
+    @Override
+    public Writer createDistFile(String pkg, String path) throws Exception {
+        return processingEnvironment.getFiler()
+                .createResource(StandardLocation.CLASS_OUTPUT, pkg, path)
+                .openWriter();
     }
 }

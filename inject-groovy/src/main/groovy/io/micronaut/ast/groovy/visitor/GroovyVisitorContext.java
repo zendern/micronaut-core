@@ -16,14 +16,21 @@
 
 package io.micronaut.ast.groovy.visitor;
 
+import io.micronaut.core.util.StringUtils;
 import io.micronaut.inject.visitor.Element;
 import io.micronaut.inject.visitor.VisitorContext;
 import org.codehaus.groovy.ast.ASTNode;
 import org.codehaus.groovy.control.ErrorCollector;
 import org.codehaus.groovy.control.Janitor;
 import org.codehaus.groovy.control.SourceUnit;
+import org.codehaus.groovy.control.messages.Message;
+import org.codehaus.groovy.control.messages.SimpleMessage;
 import org.codehaus.groovy.control.messages.SyntaxErrorMessage;
 import org.codehaus.groovy.syntax.SyntaxException;
+
+import java.io.File;
+import java.io.FileWriter;
+import java.io.Writer;
 
 /**
  * The visitor context when visiting Groovy code.
@@ -58,11 +65,27 @@ public class GroovyVisitorContext implements VisitorContext {
 
     }
 
-    private SyntaxErrorMessage buildErrorMessage(String message, Element element) {
-        ASTNode expr = (ASTNode) element.getNativeType();
-        return new SyntaxErrorMessage(
-            new SyntaxException(message + '\n', expr.getLineNumber(), expr.getColumnNumber(),
-                expr.getLastLineNumber(), expr.getLastColumnNumber()), sourceUnit);
+    @Override
+    public Writer createDistFile(String pkg, String path) throws Exception {
+        File file = sourceUnit.getConfiguration().getTargetDirectory();
+        if (StringUtils.isNotEmpty(pkg)) {
+            pkg = pkg.replaceAll("\\.", File.separator);
+            if (!pkg.endsWith(File.separator)) {
+                pkg = pkg + File.separator;
+            }
+        }
+        return new FileWriter(new File(file, pkg + path));
+    }
+
+    private Message buildErrorMessage(String message, Element element) {
+        if (element != null) {
+            ASTNode expr = (ASTNode) element.getNativeType();
+            return new SyntaxErrorMessage(
+                    new SyntaxException(message + '\n', expr.getLineNumber(), expr.getColumnNumber(),
+                            expr.getLastLineNumber(), expr.getLastColumnNumber()), sourceUnit);
+        } else {
+            return new SimpleMessage(message, sourceUnit);
+        }
     }
 
 }

@@ -23,4 +23,9 @@ package io.micronaut.inject.visitor;
  * @since 1.0
  */
 public interface ClassElement extends Element {
+
+    /**
+     * @return True if the class is an inner class
+     */
+    boolean isInnerClass();
 }

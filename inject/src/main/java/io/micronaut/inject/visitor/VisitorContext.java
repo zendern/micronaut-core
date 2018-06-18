@@ -16,6 +16,8 @@
 
 package io.micronaut.inject.visitor;
 
+import java.io.Writer;
+
 /**
  * Provides a way for {@link TypeElementVisitor} classes to log messages during compilation and fail compilation.
  *
@@ -40,4 +42,14 @@ public interface VisitorContext {
      * @param element The element
      */
     void warn(String message, Element element);
+
+
+    /**
+     * Creates a writer to a file in the output or build target directory.
+     *
+     * @param pkg The package the file is in, or an empty string if n/a
+     * @param path The path to the file
+     * @return The writer to write to
+     */
+    Writer createDistFile(String pkg, String path) throws Exception;
 }
