@@ -13,26 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.micronaut.docs.config.value
+package io.micronaut.inject.field.nullableinjection
 
 import javax.inject.Inject
-import javax.inject.Singleton
 
-/**
- * @author Graeme Rocher
- * @since 1.0
- */
-// tag::class[]
-@Singleton
-class Vehicle {
-    final Engine engine
-
-    Vehicle(Engine engine) { // <6>
-        this.engine = engine
-    }
-
-    String start() {
-        engine.start()
-    }
+class B {
+    internal var a: A? = null
+    @Inject set
 }
-// end::class[]

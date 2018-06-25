@@ -21,6 +21,7 @@ import io.micronaut.core.annotation.Internal;
 import io.micronaut.core.async.publisher.Publishers;
 import io.micronaut.core.async.subscriber.CompletionAwareSubscriber;
 import io.micronaut.core.convert.ConversionService;
+import io.micronaut.core.io.Writable;
 import io.micronaut.core.io.buffer.ByteBuffer;
 import io.micronaut.core.reflect.ClassUtils;
 import io.micronaut.core.type.Argument;
@@ -69,6 +70,7 @@ import io.micronaut.web.router.qualifier.ConsumesMediaTypeQualifier;
 import io.micronaut.web.router.resource.StaticResourceResolver;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufHolder;
+import io.netty.buffer.ByteBufOutputStream;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
@@ -90,10 +92,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.Paths;
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -230,8 +234,15 @@ class RoutingInBoundHandler extends SimpleChannelInboundHandler<io.micronaut.htt
         }
 
         if (errorRoute != null) {
-            if (LOG.isErrorEnabled()) {
-                LOG.error("Unexpected error occurred: " + cause.getMessage(), cause);
+            //handling connection reset by peer exceptions
+            if (cause instanceof IOException) {
+                if (LOG.isTraceEnabled()) {
+                    LOG.trace("IOException occurred (connection reset?): " + cause.getMessage(), cause);
+                }
+            } else {
+                if (LOG.isErrorEnabled()) {
+                    LOG.error("Unexpected error occurred: " + cause.getMessage(), cause);
+                }
             }
             if (LOG.isDebugEnabled()) {
                 LOG.debug("Found matching exception handler for exception [{}]: {}", cause.getMessage(), errorRoute);
@@ -796,7 +807,13 @@ class RoutingInBoundHandler extends SimpleChannelInboundHandler<io.micronaut.htt
                                     finalRoute.getAnnotationMetadata().getValue(Produces.class, "single", Boolean.class).orElse(false);
 
             // build the result emitter. This result emitter emits the response from a controller action
-            Flowable<?> resultEmitter = buildResultEmitter(finalRoute, requestReference, isReactiveReturnType, isSingle);
+            Flowable<?> resultEmitter = buildResultEmitter(
+                    context,
+                    finalRoute,
+                    requestReference,
+                    isReactiveReturnType,
+                    isSingle
+            );
 
 
             // here we transform the result of the controller action into a MutableHttpResponse
@@ -967,6 +984,16 @@ class RoutingInBoundHandler extends SimpleChannelInboundHandler<io.micronaut.htt
             Optional<MediaType> specifiedMediaType = response.getContentType();
             MediaType responseMediaType = specifiedMediaType.orElse(defaultResponseMediaType);
 
+            MutableHttpHeaders headers = response.getHeaders();
+            if (serverConfiguration.isDateHeader() && !headers.contains(HttpHeaders.DATE)) {
+                headers.date(LocalDateTime.now());
+            }
+            serverConfiguration.getServerHeader().ifPresent((server) -> {
+                if (!headers.contains(HttpHeaders.SERVER)) {
+                    headers.add(HttpHeaders.SERVER, server);
+                }
+            });
+
             Optional<?> responseBody = response.getBody();
             if (responseBody.isPresent()) {
 
@@ -1075,7 +1102,7 @@ class RoutingInBoundHandler extends SimpleChannelInboundHandler<io.micronaut.htt
 
     // builds the result emitter for a given route action
     private Flowable<?> buildResultEmitter(
-            RouteMatch<?> finalRoute,
+            ChannelHandlerContext context, RouteMatch<?> finalRoute,
             AtomicReference<HttpRequest<?>> requestReference,
             boolean isReactiveReturnType,
             boolean isSingleResult) {
@@ -1130,7 +1157,15 @@ class RoutingInBoundHandler extends SimpleChannelInboundHandler<io.micronaut.htt
                     emitter.onComplete();
                 } else {
                     // emit the result
-                    emitter.onNext(result);
+                    if (result instanceof Writable) {
+                        ByteBuf byteBuf = context.alloc().ioBuffer(128);
+                        ByteBufOutputStream outputStream = new ByteBufOutputStream(byteBuf);
+                        Writable writable = (Writable) result;
+                        writable.writeTo(outputStream, requestReference.get().getCharacterEncoding());
+                        emitter.onNext(byteBuf);
+                    } else {
+                        emitter.onNext(result);
+                    }
                     emitter.onComplete();
                 }
 

@@ -1,4 +1,6 @@
-introduction: Introduction
+introduction:
+  title: Introduction
+  whatsNew: What's New?
 quickStart:
   title: Quick Start
   buildCLI:
@@ -73,6 +75,7 @@ httpServer:
 #  contentNegotiation: Content Negotiation
   errorHandling: Error Handling
   formData: Handling Form Data
+  serverIO: Writing Response Data
   uploads: File Uploads
   transfers: File Transfers
   sse: Server Sent Events
