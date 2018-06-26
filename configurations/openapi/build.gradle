@@ -1,5 +1,6 @@
 dependencies {
     compileOnly project(":inject")
+    compile project(":http")
     compile "io.swagger.core.v3:swagger-core:2.0.2"
     compile "io.swagger.core.v3:swagger-jaxrs2:2.0.2"
 

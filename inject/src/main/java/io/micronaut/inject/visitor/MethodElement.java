@@ -23,4 +23,9 @@ package io.micronaut.inject.visitor;
  * @since 1.0
  */
 public interface MethodElement extends Element {
+
+    /**
+     * @return True if the element represents a constructor
+     */
+    boolean isConstructor();
 }

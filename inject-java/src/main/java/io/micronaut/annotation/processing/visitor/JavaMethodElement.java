@@ -19,6 +19,7 @@ package io.micronaut.annotation.processing.visitor;
 import io.micronaut.core.annotation.AnnotationMetadata;
 import io.micronaut.inject.visitor.MethodElement;
 
+import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
 
 /**
@@ -38,6 +39,11 @@ class JavaMethodElement extends AbstractJavaElement implements MethodElement {
     JavaMethodElement(ExecutableElement executableElement, AnnotationMetadata annotationMetadata) {
         super(executableElement, annotationMetadata);
         this.executableElement = executableElement;
+    }
+
+    @Override
+    public boolean isConstructor() {
+        return executableElement.getKind() == ElementKind.CONSTRUCTOR;
     }
 
 }

@@ -1,9 +1,15 @@
 package io.micronaut.configuration.openapi.swagger;
 
+import io.micronaut.http.annotation.Consumes;
+import io.micronaut.http.annotation.Controller;
+import io.micronaut.http.annotation.HttpMethodMapping;
+import io.micronaut.http.annotation.Produces;
 import io.micronaut.inject.visitor.*;
 import io.swagger.v3.core.util.AnnotationsUtils;
 import io.swagger.v3.core.util.Yaml;
+import io.swagger.v3.oas.annotations.ExternalDocumentation;
 import io.swagger.v3.oas.annotations.OpenAPIDefinition;
+import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.security.SecurityRequirements;
 import io.swagger.v3.oas.annotations.security.SecurityScheme;
@@ -69,11 +75,35 @@ public class SwaggerOpenAPIVisitor implements TypeElementVisitor<Object, Object>
             handleServers(element.getDeclaredAnnotation(Server.class));
         }
 
+        if (element.hasDeclaredAnnotation(ExternalDocumentation.class)) {
+            handleExternalDocumentation(element.getDeclaredAnnotation(ExternalDocumentation.class));
+        }
+
+        if (element.hasDeclaredAnnotation(Controller.class)) {
+            element.getValue(Controller.class, String.class).ifPresent(operationClassData::setPath);
+            element.getValue(Consumes.class, String[].class).ifPresent(operationClassData::setConsumes);
+            element.getValue(Produces.class, String[].class).ifPresent(operationClassData::setProduces);
+        }
 
     }
 
     @Override
     public void visitMethod(MethodElement element, VisitorContext context) {
+        if (element.isConstructor()) {
+            return;
+        }
+
+        if (element.hasStereotype(HttpMethodMapping.class)) {
+            element.getValue(HttpMethodMapping.class, String.class).ifPresent(path -> {
+
+                String[] consumes = element.getValue(Consumes.class, String[].class).orElse(operationClassData.consumes);
+                String[] produces = element.getValue(Produces.class, String[].class).orElse(operationClassData.produces);
+
+                if (element.hasDeclaredAnnotation(Operation.class)) {
+                }
+
+            });
+        }
 
     }
 
@@ -168,11 +198,19 @@ public class SwaggerOpenAPIVisitor implements TypeElementVisitor<Object, Object>
         AnnotationsUtils.getServers(servers).ifPresent(operationClassData::addServers);
     }
 
+    void handleExternalDocumentation(ExternalDocumentation externalDocumentation) {
+        AnnotationsUtils.getExternalDocumentation(externalDocumentation).ifPresent(operationClassData::setExternalDocumentation);
+    }
+
     static class OperationClassData {
 
-        private List<io.swagger.v3.oas.models.security.SecurityRequirement> securityRequirements = new ArrayList<>();
-        private Set<io.swagger.v3.oas.models.tags.Tag> tags = new HashSet<>();
-        private List<io.swagger.v3.oas.models.servers.Server> servers = new ArrayList<>();
+        List<io.swagger.v3.oas.models.security.SecurityRequirement> securityRequirements = new ArrayList<>();
+        Set<io.swagger.v3.oas.models.tags.Tag> tags = new HashSet<>();
+        List<io.swagger.v3.oas.models.servers.Server> servers = new ArrayList<>();
+        io.swagger.v3.oas.models.ExternalDocumentation externalDocumentation = null;
+        String path = null;
+        String[] consumes = null;
+        String[] produces = null;
 
         OperationClassData() {
 
@@ -190,6 +228,21 @@ public class SwaggerOpenAPIVisitor implements TypeElementVisitor<Object, Object>
             this.servers.addAll(servers);
         }
 
+        void setExternalDocumentation(io.swagger.v3.oas.models.ExternalDocumentation externalDocumentation) {
+            this.externalDocumentation = externalDocumentation;
+        }
+
+        void setPath(String path) {
+            this.path = path;
+        }
+
+        void setConsumes(String[] consumes) {
+            this.consumes = consumes;
+        }
+
+        void setProduces(String[] produces) {
+            this.produces = produces;
+        }
     }
 
     /*
