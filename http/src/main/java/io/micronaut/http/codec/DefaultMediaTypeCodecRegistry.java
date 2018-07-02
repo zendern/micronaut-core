@@ -18,12 +18,7 @@ package io.micronaut.http.codec;
 
 import io.micronaut.http.MediaType;
 
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 
 /**
  * Registry of {@link MediaTypeCodec} instances.
@@ -52,10 +47,12 @@ public class DefaultMediaTypeCodecRegistry implements MediaTypeCodecRegistry {
         if (codecs != null) {
             this.codecs = Collections.unmodifiableCollection(codecs);
             for (MediaTypeCodec decoder : codecs) {
-                MediaType mediaType = decoder.getMediaType();
-                if (mediaType != null) {
-                    decodersByExtension.put(mediaType.getExtension(), decoder);
-                    decodersByType.put(mediaType, decoder);
+                List<MediaType> mediaTypes = decoder.getMediaTypes();
+                for (MediaType mediaType : mediaTypes) {
+                    if (mediaType != null) {
+                        decodersByExtension.put(mediaType.getExtension(), decoder);
+                        decodersByType.put(mediaType, decoder);
+                    }
                 }
             }
         } else {

@@ -184,6 +184,16 @@ public class MediaType implements CharSequence {
     public static final MediaType TEXT_PLAIN_TYPE = new MediaType(TEXT_PLAIN);
 
     /**
+     * JavaScript: text/javascript.
+     */
+    public static final String TEXT_JAVASCRIPT = "text/javascript";
+
+    /**
+     * JavaScript: text/javascript.
+     */
+    public static final MediaType TEXT_JAVASCRIPT_TYPE = new MediaType(TEXT_JAVASCRIPT, "js");
+
+    /**
      * HAL JSON: application/hal+json.
      */
     public static final String APPLICATION_HAL_JSON = "application/hal+json";
@@ -267,6 +277,7 @@ public class MediaType implements CharSequence {
      * Parameter {@code "v"}.
      */
     public static final String V_PARAMETER = "v";
+
 
     private static final BigDecimal QUALITY_RATING_NUMBER = new BigDecimal("1.0");
     private static final String QUALITY_RATING = "1.0";

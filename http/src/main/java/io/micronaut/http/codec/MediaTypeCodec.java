@@ -25,6 +25,8 @@ import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.Collections;
+import java.util.List;
 
 /**
  * Represents a codec for a particular media type. For example JSON.
@@ -80,6 +82,15 @@ public interface MediaTypeCodec {
      * @throws CodecException When the result cannot be decoded
      */
     <T> ByteBuffer encode(T object, ByteBufferFactory allocator) throws CodecException;
+
+    /**
+     * All the media types supported by this codec.
+     *
+     * @return A list of media types
+     */
+    default List<MediaType> getMediaTypes() {
+        return Collections.singletonList(getMediaType());
+    }
 
     /**
      * Decode the given type from the given {@link InputStream}.

@@ -21,6 +21,7 @@ import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.type.TypeFactory;
+import io.micronaut.context.annotation.Primary;
 import io.micronaut.core.io.buffer.ByteBuffer;
 import io.micronaut.core.io.buffer.ByteBufferFactory;
 import io.micronaut.core.type.Argument;
@@ -34,6 +35,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -44,6 +46,7 @@ import java.util.Map;
  * @since 1.0
  */
 @Singleton
+@Primary
 public class JsonMediaTypeCodec implements MediaTypeCodec {
 
     private final ObjectMapper objectMapper;
@@ -73,6 +76,11 @@ public class JsonMediaTypeCodec implements MediaTypeCodec {
     @Override
     public MediaType getMediaType() {
         return MediaType.APPLICATION_JSON_TYPE;
+    }
+
+    @Override
+    public List<MediaType> getMediaTypes() {
+        return Arrays.asList(getMediaType(), MediaType.TEXT_JAVASCRIPT_TYPE, MediaType.TEXT_JSON_TYPE);
     }
 
     @SuppressWarnings("Duplicates")
