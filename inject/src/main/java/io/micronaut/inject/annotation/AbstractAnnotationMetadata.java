@@ -41,6 +41,7 @@ abstract class AbstractAnnotationMetadata implements AnnotationMetadata {
     protected final Map<String, Annotation> declaredAnnotationMap;
     private Annotation[] allAnnotationArray;
     private Annotation[] declaredAnnotationArray;
+    protected static Map<String, Map<CharSequence, Object>> ANNOTATION_DEFAULTS = new ConcurrentHashMap<>();
 
     /**
      * Constructs an instance for the given arguments.
@@ -49,9 +50,13 @@ abstract class AbstractAnnotationMetadata implements AnnotationMetadata {
      * @param allAnnotations All annotations
      */
     protected AbstractAnnotationMetadata(@Nullable Map<String, Map<CharSequence, Object>> declaredAnnotations,
-                                         @Nullable Map<String, Map<CharSequence, Object>> allAnnotations) {
+                                         @Nullable Map<String, Map<CharSequence, Object>> allAnnotations,
+                                         @Nullable Map<String, Map<CharSequence, Object>> annotationDefaults) {
         this.declaredAnnotationMap = declaredAnnotations != null ? new ConcurrentHashMap<>(declaredAnnotations.size()) : null;
         this.annotationMap = allAnnotations != null ? new ConcurrentHashMap<>(allAnnotations.size()) : null;
+        if (annotationDefaults != null) {
+            ANNOTATION_DEFAULTS.putAll(annotationDefaults);
+        }
     }
 
     /**

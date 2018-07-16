@@ -38,6 +38,7 @@ import java.util.*;
  */
 public abstract class AbstractAnnotationMetadataBuilder<T, A> {
 
+
     /**
      * Build the meta data for the given element. If the element is a method the class metadata will be included.
      *
@@ -136,6 +137,14 @@ public abstract class AbstractAnnotationMetadataBuilder<T, A> {
     protected abstract Map<? extends T, ?> readAnnotationRawValues(A annotationMirror);
 
     /**
+     * Read the raw default annotation values from the given annotation.
+     *
+     * @param annotationMirror The annotation
+     * @return The values
+     */
+    protected abstract Map<? extends T, ?> readAnnotationDefaultValues(A annotationMirror);
+
+    /**
      * Resolve the annotations values from the given member for the given type.
      *
      * @param member         The member
@@ -204,6 +213,21 @@ public abstract class AbstractAnnotationMetadataBuilder<T, A> {
         DefaultAnnotationMetadata metadata,
         boolean isDeclared) {
         String annotationName = getAnnotationTypeName(annotationMirror);
+
+        Map<? extends T, ?> elementDefaultValues = readAnnotationDefaultValues(annotationMirror);
+        if (elementDefaultValues != null) {
+            Map<CharSequence, Object> defaultValues = new LinkedHashMap<>();
+            for (Map.Entry<? extends T, ?> entry : elementDefaultValues.entrySet()) {
+                T member = entry.getKey();
+                String memberName = getAnnotationMemberName(member);
+                if (!defaultValues.containsKey(memberName)) {
+                    Object annotationValue = entry.getValue();
+                    readAnnotationRawValues(memberName, annotationValue, defaultValues);
+                }
+            }
+            metadata.addDefaultAnnotationValues(annotationName, defaultValues);
+        }
+
         List<String> parentAnnotations = new ArrayList<>();
         parentAnnotations.add(annotationName);
         Map<? extends T, ?> elementValues = readAnnotationRawValues(annotationMirror);

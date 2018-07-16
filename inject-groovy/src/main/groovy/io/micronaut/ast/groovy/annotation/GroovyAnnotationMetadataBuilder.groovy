@@ -32,6 +32,8 @@ import org.codehaus.groovy.ast.expr.ConstantExpression
 import org.codehaus.groovy.ast.expr.Expression
 import org.codehaus.groovy.ast.expr.ListExpression
 import org.codehaus.groovy.ast.expr.PropertyExpression
+import org.codehaus.groovy.ast.stmt.ReturnStatement
+import org.codehaus.groovy.ast.stmt.Statement
 
 import java.lang.annotation.Repeatable
 import java.lang.reflect.Array
@@ -46,6 +48,7 @@ import java.lang.reflect.Array
 class GroovyAnnotationMetadataBuilder extends AbstractAnnotationMetadataBuilder<AnnotatedNode, AnnotationNode> {
 
     public static final ClassNode ANN_OVERRIDE = ClassHelper.make(Override.class)
+    public static Map<String, Map<? extends AnnotatedNode, Expression>> ANNOTATION_DEFAULTS = new LinkedHashMap<>()
 
     @Override
     protected AnnotatedNode getTypeForAnnotation(AnnotationNode annotationMirror) {
@@ -119,7 +122,12 @@ class GroovyAnnotationMetadataBuilder extends AbstractAnnotationMetadataBuilder<
                 AnnotationNode value = (AnnotationNode) ann.getValue()
                 return readNestedAnnotationValue(value)
             } else {
-                return ((ConstantExpression) annotationValue).value
+                Object value = annotationValue.value
+                if (value instanceof Class) {
+                    return ((Class) value).getName()
+                } else {
+                    return value
+                }
             }
 
         } else if (annotationValue instanceof PropertyExpression) {
@@ -179,6 +187,12 @@ class GroovyAnnotationMetadataBuilder extends AbstractAnnotationMetadataBuilder<
             values.put(annotationClassNode.getMethods(m.key)[0], m.value)
         }
         return values
+    }
+
+    @Override
+    protected Map<? extends AnnotatedNode, ?> readAnnotationDefaultValues(AnnotationNode annotationMirror) {
+        ClassNode classNode = annotationMirror.classNode
+        return ANNOTATION_DEFAULTS.get(classNode.name)
     }
 
     @Override

@@ -70,6 +70,7 @@ public class AnnotationMetadataWriter extends AbstractClassFileWriter {
             Map.class,
             Map.class,
             Map.class,
+            Map.class,
             Map.class
         )
     );
@@ -195,6 +196,8 @@ public class AnnotationMetadataWriter extends AbstractClassFileWriter {
         pushCreateAnnotationData(generatorAdapter, annotationMetadata.allAnnotations);
         // 5th argument: annotations by stereotype
         pushCreateAnnotationsByStereotypeData(generatorAdapter, annotationMetadata.annotationsByStereotype);
+        // 6th argument: annotation defaults
+        pushCreateAnnotationData(generatorAdapter, annotationMetadata.annotationDefaults);
 
         generatorAdapter.invokeConstructor(TYPE_DEFAULT_ANNOTATION_METADATA, CONSTRUCTOR_ANNOTATION_METADATA);
     }

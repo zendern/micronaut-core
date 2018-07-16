@@ -50,7 +50,7 @@ public abstract class AbstractEnvironmentAnnotationMetadata extends AbstractAnno
      * @param targetMetadata The target annotation metadata
      */
     protected AbstractEnvironmentAnnotationMetadata(DefaultAnnotationMetadata targetMetadata) {
-        super(targetMetadata.declaredAnnotations, targetMetadata.allAnnotations);
+        super(targetMetadata.declaredAnnotations, targetMetadata.allAnnotations, targetMetadata.annotationDefaults);
         this.annotationMetadata = targetMetadata;
     }
 

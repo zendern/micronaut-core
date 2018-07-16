@@ -80,6 +80,7 @@ public class DefaultAnnotationMetadata extends AbstractAnnotationMetadata implem
     Map<String, Map<CharSequence, Object>> allAnnotations;
     Map<String, Map<CharSequence, Object>> declaredStereotypes;
     Map<String, Map<CharSequence, Object>> allStereotypes;
+    Map<String, Map<CharSequence, Object>> annotationDefaults;
     Map<String, List<String>> annotationsByStereotype;
 
     /**
@@ -104,13 +105,15 @@ public class DefaultAnnotationMetadata extends AbstractAnnotationMetadata implem
         @Nullable Map<String, Map<CharSequence, Object>> declaredStereotypes,
         @Nullable Map<String, Map<CharSequence, Object>> allStereotypes,
         @Nullable Map<String, Map<CharSequence, Object>> allAnnotations,
-        @Nullable Map<String, List<String>> annotationsByStereotype) {
-        super(declaredAnnotations, allAnnotations);
+        @Nullable Map<String, List<String>> annotationsByStereotype,
+        @Nullable Map<String, Map<CharSequence, Object>> annotationDefaults) {
+        super(declaredAnnotations, allAnnotations, annotationDefaults);
         this.declaredAnnotations = declaredAnnotations;
         this.declaredStereotypes = declaredStereotypes;
         this.allStereotypes = allStereotypes;
         this.allAnnotations = allAnnotations;
         this.annotationsByStereotype = annotationsByStereotype;
+        this.annotationDefaults = annotationDefaults;
     }
 
     @Override
@@ -316,7 +319,8 @@ public class DefaultAnnotationMetadata extends AbstractAnnotationMetadata implem
             declaredStereotypes != null ? new HashMap<>(declaredStereotypes) : null,
             allStereotypes != null ? new HashMap<>(allStereotypes) : null,
             allAnnotations != null ? new HashMap<>(allAnnotations) : null,
-            annotationsByStereotype != null ? new HashMap<>(annotationsByStereotype) : null
+            annotationsByStereotype != null ? new HashMap<>(annotationsByStereotype) : null,
+            null
         );
     }
 
@@ -483,6 +487,20 @@ public class DefaultAnnotationMetadata extends AbstractAnnotationMetadata implem
     }
 
     /**
+     * Adds an annotation directly declared on the element and its member values, if the annotation already exists the
+     * data will be merged with existing values replaced.
+     *
+     * @param annotation The annotation
+     * @param values     The values
+     */
+    protected void addDefaultAnnotationValues(String annotation, Map<CharSequence, Object> values) {
+        if (annotation != null) {
+            Map<String, Map<CharSequence, Object>> annotationDefaults = getAnnotationDefaultsInternal();
+            putValues(annotation, values, annotationDefaults);
+        }
+    }
+
+    /**
      * Dump the values.
      */
     @SuppressWarnings("unused")
@@ -519,8 +537,8 @@ public class DefaultAnnotationMetadata extends AbstractAnnotationMetadata implem
 
     private void addAnnotation(String annotation,
                                Map<CharSequence, Object> values,
-                               Map<String, Map<CharSequence, Object>> declaredAnnotations, Map<String,
-        Map<CharSequence, Object>> allAnnotations,
+                               Map<String, Map<CharSequence, Object>> declaredAnnotations,
+                               Map<String, Map<CharSequence, Object>> allAnnotations,
                                boolean isDeclared) {
         if (isDeclared && declaredAnnotations != null) {
             putValues(annotation, values, declaredAnnotations);
@@ -594,6 +612,11 @@ public class DefaultAnnotationMetadata extends AbstractAnnotationMetadata implem
             this.declaredAnnotations = annotations;
         }
         return annotations;
+    }
+
+    @SuppressWarnings("MagicNumber")
+    private Map<String, Map<CharSequence, Object>> getAnnotationDefaultsInternal() {
+        return ANNOTATION_DEFAULTS;
     }
 
     private List<String> getAnnotationsByStereotypeInternal(String stereotype) {

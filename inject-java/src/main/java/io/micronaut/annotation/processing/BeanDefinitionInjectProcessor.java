@@ -33,6 +33,7 @@ import io.micronaut.core.naming.NameUtils;
 import io.micronaut.core.util.ArrayUtils;
 import io.micronaut.core.util.StringUtils;
 import io.micronaut.core.value.OptionalValues;
+import io.micronaut.inject.annotation.AbstractAnnotationMetadataBuilder;
 import io.micronaut.inject.annotation.AnnotationMetadataReference;
 import io.micronaut.inject.annotation.DefaultAnnotationMetadata;
 import io.micronaut.inject.annotation.JavaAnnotationMetadataBuilder;
@@ -132,11 +133,14 @@ public class BeanDefinitionInjectProcessor extends AbstractInjectAnnotationProce
         }
         executed = true;
 
+        processAnnotationDefaults(annotations);
+
         annotations = annotations
                 .stream()
                 .filter(ann -> !ann.getQualifiedName().toString().equals(AnnotationUtil.KOTLIN_METADATA))
                 .filter(ann -> annotationUtils.hasStereotype(ann, ANNOTATION_STEREOTYPES))
                 .collect(Collectors.toSet());
+
 
         if (!annotations.isEmpty()) {
             TypeElement groovyObjectTypeElement = elementUtils.getTypeElement("groovy.lang.GroovyObject");
@@ -262,6 +266,25 @@ public class BeanDefinitionInjectProcessor extends AbstractInjectAnnotationProce
         } else {
             return modelUtils.resolveTypeName(valueType);
         }
+    }
+
+    private void processAnnotationDefaults(Set<? extends TypeElement> annotations) {
+        Map<String, Map<Element, AnnotationValue>> defaults = JavaAnnotationMetadataBuilder.ANNOTATION_DEFAULTS;
+
+        for (TypeElement annotation: annotations) {
+            String annotationName = annotation.getQualifiedName().toString();
+            defaults.putIfAbsent(annotationName, new LinkedHashMap<>());
+            Map<Element, AnnotationValue> defaultValues = defaults.get(annotationName);
+            elementUtils.getAllMembers(annotation)
+                    .stream()
+                    .filter(member -> member.getEnclosingElement() == annotation)
+                    .filter(ExecutableElement.class::isInstance)
+                    .map(ExecutableElement.class::cast)
+                    .forEach(executableElement -> {
+                        defaultValues.put(executableElement, executableElement.getDefaultValue());
+                    });
+        }
+
     }
 
     /**

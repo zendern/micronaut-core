@@ -52,6 +52,8 @@ import java.util.stream.Stream;
 public class JavaAnnotationMetadataBuilder extends AbstractAnnotationMetadataBuilder<Element, AnnotationMirror> {
 
     private final Elements elementUtils;
+    public static Map<String, Map<Element, javax.lang.model.element.AnnotationValue>> ANNOTATION_DEFAULTS = new LinkedHashMap<>();
+
 
     /**
      * @param elementUtils Element utils
@@ -135,6 +137,11 @@ public class JavaAnnotationMetadataBuilder extends AbstractAnnotationMetadataBui
     @Override
     protected Map<? extends Element, ?> readAnnotationRawValues(AnnotationMirror annotationMirror) {
         return annotationMirror.getElementValues();
+    }
+
+    @Override
+    protected Map<? extends Element, ?> readAnnotationDefaultValues(AnnotationMirror annotationMirror) {
+        return ANNOTATION_DEFAULTS.get(getAnnotationTypeName(annotationMirror));
     }
 
     @Override

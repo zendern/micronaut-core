@@ -22,6 +22,9 @@ import io.micronaut.inject.annotation.DefaultAnnotationMetadata
 import io.micronaut.inject.configuration.ConfigurationMetadata
 import io.micronaut.inject.configuration.PropertyMetadata
 import io.micronaut.inject.writer.DirectoryClassWriterOutputVisitor
+import org.codehaus.groovy.ast.expr.ConstantExpression
+import org.codehaus.groovy.ast.stmt.ReturnStatement
+import org.codehaus.groovy.ast.stmt.Statement
 
 import static org.codehaus.groovy.ast.ClassHelper.makeCached
 import static org.codehaus.groovy.ast.tools.GeneralUtils.getGetterName
@@ -125,6 +128,9 @@ class InjectTransform implements ASTTransformation, CompilationUnitAware {
                 classesDir
         )
         List<ClassNode> classes = moduleNode.getClasses()
+
+        processAnnotationDefaults(classes)
+
         if (classes.size() == 1) {
             ClassNode classNode = classes[0]
             if (classNode.nameWithoutPackage == 'package-info') {
@@ -255,6 +261,32 @@ class InjectTransform implements ASTTransformation, CompilationUnitAware {
         }
 
         AstAnnotationUtils.invalidateCache()
+    }
+
+    void processAnnotationDefaults(List<ClassNode> classNodes) {
+        Map<String, Map<? extends AnnotatedNode, Expression>> defaults = GroovyAnnotationMetadataBuilder.ANNOTATION_DEFAULTS
+        for (ClassNode classNode: classNodes) {
+            for (AnnotationNode node: classNode.annotations) {
+                ClassNode annotationClass = node.classNode
+                defaults.putIfAbsent(annotationClass.name, new LinkedHashMap<>())
+
+                List<MethodNode> methods = new ArrayList<>(annotationClass.getMethods())
+                Map<? extends AnnotatedNode, Expression> defaultValues = defaults.get(annotationClass.name)
+                if (classNode.isResolved()) {
+                    Class resolved = classNode.getTypeClass()
+                    for (MethodNode method: methods) {
+                        defaultValues.put(method, new ConstantExpression(resolved.getDeclaredMethod(method.getName()).defaultValue))
+                    }
+                } else {
+                    for (MethodNode method: methods) {
+                        Statement stmt = method.code
+                        if (stmt instanceof ReturnStatement) {
+                            defaultValues.put(method, ((ReturnStatement) stmt).expression)
+                        }
+                    }
+                }
+            }
+        }
     }
 
     @Override
