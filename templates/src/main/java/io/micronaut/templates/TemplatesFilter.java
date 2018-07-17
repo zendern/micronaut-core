@@ -18,6 +18,7 @@ package io.micronaut.templates;
 
 import io.micronaut.context.annotation.Requires;
 import io.micronaut.core.async.publisher.Publishers;
+import io.micronaut.core.io.Writable;
 import io.micronaut.http.HttpAttributes;
 import io.micronaut.http.HttpRequest;
 import io.micronaut.http.HttpStatus;
@@ -78,15 +79,15 @@ public class TemplatesFilter extends OncePerRequestHttpServerFilter {
                                                 .orElse(Optional.empty()), response))));
                     });
             return responseFlowable.map(viewRenderedAndResponse -> {
-                Optional<String> templateRendered = viewRenderedAndResponse.templateRendered;
+                Optional<Writable> templateRendered = viewRenderedAndResponse.templateRendered;
                 MutableHttpResponse<Object> response = (MutableHttpResponse<Object>) viewRenderedAndResponse.response;
-                if (!templateRendered.isPresent()) {
+                if (templateRendered.isPresent()) {
+                    MediaType contentType = route.getValue(Produces.class, MediaType.class).orElse(MediaType.TEXT_HTML_TYPE);
+                    response.contentType(contentType);
+                    response.body(templateRendered.get());
+                } else {
                     response.status(HttpStatus.NOT_FOUND);
                 }
-
-                response.body(templateRendered);
-                MediaType contentType = route.getValue(Produces.class, MediaType.class).orElse(MediaType.TEXT_HTML_TYPE);
-                response.contentType(contentType);
                 return response;
             });
 
@@ -98,7 +99,7 @@ public class TemplatesFilter extends OncePerRequestHttpServerFilter {
      * Store the view rendered and the response.
      */
     class ViewRenderedAndResponse {
-        final Optional<String> templateRendered;
+        final Optional<Writable> templateRendered;
         final MutableHttpResponse<?> response;
 
         /**
@@ -107,7 +108,7 @@ public class TemplatesFilter extends OncePerRequestHttpServerFilter {
          * @param templateRendered The Template Rendered
          * @param response The mutable HTTP response
          */
-        ViewRenderedAndResponse(Optional<String> templateRendered, MutableHttpResponse<?> response) {
+        ViewRenderedAndResponse(Optional<Writable> templateRendered, MutableHttpResponse<?> response) {
             this.templateRendered = templateRendered;
             this.response = response;
         }

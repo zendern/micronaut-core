@@ -25,6 +25,7 @@ import java.util.Properties;
 
 import io.micronaut.context.annotation.Requires;
 import io.micronaut.core.beans.BeanMap;
+import io.micronaut.core.io.Writable;
 import org.apache.velocity.VelocityContext;
 import org.apache.velocity.app.VelocityEngine;
 import org.apache.velocity.exception.MethodInvocationException;
@@ -63,22 +64,20 @@ public class VelocityTemplateRenderer implements TemplateRenderer {
     }
 
     @Override
-    public Optional<String> render(String view, Object data) {
-        final StringWriter writer = new StringWriter();
-        Optional<String> result = Optional.empty();
-
-        Map<String, Object> context = context(data);
-        final VelocityContext velocityContext = new VelocityContext(context);
-        String templateName = templateName(view);
+    public Optional<Writable> render(String view, Object data) {
         try {
-            velocityEngine.mergeTemplate(templateName, StandardCharsets.UTF_8.name(), velocityContext, writer);
-            result = Optional.of(writer.toString());
+            return Optional.of((writer) -> {
+                Map<String, Object> context = context(data);
+                final VelocityContext velocityContext = new VelocityContext(context);
+                String templateName = templateName(view);
+                velocityEngine.mergeTemplate(templateName, StandardCharsets.UTF_8.name(), velocityContext, writer);
+            });
         } catch (ResourceNotFoundException | ParseErrorException | MethodInvocationException e) {
             if (LOG.isErrorEnabled()) {
                 LOG.error(e.getMessage());
             }
         }
-        return result;
+        return Optional.empty();
     }
 
     private Map<String, Object> context(Object data) {

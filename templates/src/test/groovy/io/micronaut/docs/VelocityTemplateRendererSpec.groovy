@@ -1,13 +1,16 @@
 package io.micronaut.docs
 
 import io.micronaut.context.ApplicationContext
+import io.micronaut.context.exceptions.NoSuchBeanException
 import io.micronaut.http.HttpResponse
 import io.micronaut.http.HttpStatus
 import io.micronaut.http.MediaType
 import io.micronaut.http.client.RxHttpClient
 import io.micronaut.http.client.exceptions.HttpClientResponseException
 import io.micronaut.runtime.server.EmbeddedServer
+import io.micronaut.templates.HandlebarsTemplateRenderer
 import io.micronaut.templates.TemplatesFilter
+import io.micronaut.templates.ThymeleafTemplateRenderer
 import io.micronaut.templates.VelocityTemplateRenderer
 import spock.lang.AutoCleanup
 import spock.lang.Shared
@@ -37,6 +40,18 @@ class VelocityTemplateRendererSpec extends Specification {
 
         then:
         noExceptionThrown()
+
+        when:
+        embeddedServer.applicationContext.getBean(ThymeleafTemplateRenderer)
+
+        then:
+        thrown(NoSuchBeanException)
+
+        when:
+        embeddedServer.applicationContext.getBean(HandlebarsTemplateRenderer)
+
+        then:
+        thrown(NoSuchBeanException)
     }
 
     def "invoking /velocity/home does not specify @Template, thus, regular JSON rendering is used"() {
