@@ -18,6 +18,7 @@ package io.micronaut.templates;
 
 import io.micronaut.context.annotation.Requires;
 import io.micronaut.core.beans.BeanMap;
+import io.micronaut.core.io.Writable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.thymeleaf.TemplateEngine;
@@ -74,12 +75,12 @@ public class ThymeleafTemplateRenderer implements TemplateRenderer {
     }
 
     @Override
-    public Optional<String> render(String view, Object data) {
-        StringWriter writer = new StringWriter();
-        final IContext context = new Context(Locale.US, variables(data));
+    public Optional<Writable> render(String view, Object data) {
         try {
-            engine.process(view, context, writer);
-            return Optional.of(writer.toString());
+            return Optional.of((writer) -> {
+                final IContext context = new Context(Locale.US, variables(data));
+                engine.process(view, context, writer);
+            });
         } catch (TemplateEngineException e) {
             if (LOG.isErrorEnabled()) {
                 LOG.error(e.getMessage());

@@ -19,6 +19,7 @@ package io.micronaut.templates;
 import com.github.jknack.handlebars.Handlebars;
 import com.github.jknack.handlebars.Template;
 import io.micronaut.context.annotation.Requires;
+import io.micronaut.core.io.Writable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import javax.inject.Singleton;
@@ -52,20 +53,18 @@ public class HandlebarsTemplateRenderer implements TemplateRenderer {
     }
 
     @Override
-    public Optional<String> render(String view, Object data) {
-        Optional<String> result = Optional.empty();
-        String location = templateLocation(view);
-        try {
-            StringWriter writer = new StringWriter();
-            Template template = handlebars.compile(location);
-            template.apply(data, writer);
-            result = Optional.of(writer.toString());
-        } catch (IOException e) {
-            if (LOG.isErrorEnabled()) {
-                LOG.error(e.getMessage());
+    public Optional<Writable> render(String view, Object data) {
+        return Optional.of((writer) -> {
+            String location = templateLocation(view);
+            try {
+                Template template = handlebars.compile(location);
+                template.apply(data, writer);
+            } catch (java.io.IOException e) {
+                if (LOG.isErrorEnabled()) {
+                    LOG.error(e.getMessage());
+                }
             }
-        }
-        return result;
+        });
     }
 
     private String templateLocation(final String name) {

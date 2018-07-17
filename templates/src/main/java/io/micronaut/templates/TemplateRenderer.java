@@ -16,6 +16,8 @@
 
 package io.micronaut.templates;
 
+import io.micronaut.core.io.Writable;
+
 import java.util.Optional;
 
 /**
@@ -32,5 +34,5 @@ public interface TemplateRenderer {
      * @param data response body to render it with a template
      * @return the rendered template or empty if template not found or error occurred.
      */
-    Optional<String> render(String templateName, Object data);
+    Optional<Writable> render(String templateName, Object data);
 }
