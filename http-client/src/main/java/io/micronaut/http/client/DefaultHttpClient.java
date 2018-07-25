@@ -51,7 +51,7 @@ import io.micronaut.http.codec.MediaTypeCodecRegistry;
 import io.micronaut.http.filter.ClientFilterChain;
 import io.micronaut.http.filter.HttpClientFilter;
 import io.micronaut.http.multipart.MultipartException;
-import io.micronaut.http.netty.buffer.NettyByteBufferFactory;
+import io.micronaut.buffer.netty.NettyByteBufferFactory;
 import io.micronaut.http.netty.channel.NettyThreadFactory;
 import io.micronaut.http.netty.content.HttpContentUtil;
 import io.micronaut.http.netty.stream.HttpStreamsClientHandler;
@@ -83,6 +83,7 @@ import io.netty.handler.timeout.IdleStateEvent;
 import io.netty.handler.timeout.IdleStateHandler;
 import io.netty.handler.timeout.ReadTimeoutHandler;
 import io.netty.util.CharsetUtil;
+import io.netty.util.ReferenceCountUtil;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import io.netty.util.concurrent.Future;
 import io.reactivex.*;
@@ -113,6 +114,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 
 /**
  * Default implementation of the {@link HttpClient} interface based on Netty.
@@ -155,6 +157,7 @@ public class DefaultHttpClient implements RxHttpClient, RxStreamingHttpClient, R
      *
      * @param loadBalancer               The {@link LoadBalancer} to use for selecting servers
      * @param configuration              The {@link HttpClientConfiguration} object
+     * @param contextPath                The base URI to prepend to request uris
      * @param threadFactory              The thread factory to use for client threads
      * @param nettyClientSslBuilder      The SSL builder
      * @param codecRegistry              The {@link MediaTypeCodecRegistry} to use for encoding and decoding objects
@@ -251,7 +254,7 @@ public class DefaultHttpClient implements RxHttpClient, RxStreamingHttpClient, R
     /**
      * @param url           The URL
      * @param configuration The {@link HttpClientConfiguration} object
-     * @param contextPath   The context path
+     * @param contextPath   The base URI to prepend to request uris
      */
     public DefaultHttpClient(URL url, HttpClientConfiguration configuration, String contextPath) {
         this(
@@ -275,6 +278,7 @@ public class DefaultHttpClient implements RxHttpClient, RxStreamingHttpClient, R
     /**
      * @param loadBalancer  The {@link LoadBalancer} to use for selecting servers
      * @param configuration The {@link HttpClientConfiguration} object
+     * @param contextPath   The base URI to prepend to request uris
      */
     public DefaultHttpClient(LoadBalancer loadBalancer, HttpClientConfiguration configuration, String contextPath) {
         this(loadBalancer,
@@ -367,7 +371,14 @@ public class DefaultHttpClient implements RxHttpClient, RxStreamingHttpClient, R
             @Override
             public <I, O> io.micronaut.http.HttpResponse<O> exchange(io.micronaut.http.HttpRequest<I> request, io.micronaut.core.type.Argument<O> bodyType) {
                 Flowable<io.micronaut.http.HttpResponse<O>> publisher = DefaultHttpClient.this.exchange(request, bodyType);
-                return publisher.doOnNext((res) -> res.getBody(ByteBuf.class).ifPresent(ByteBuf::release)).blockingFirst();
+                return publisher.doOnNext((res) -> {
+                    Optional<ByteBuf> byteBuf = res.getBody(ByteBuf.class);
+                    byteBuf.ifPresent(bb -> {
+                        if (bb.refCnt() > 0) {
+                            ReferenceCountUtil.safeRelease(bb);
+                        }
+                    });
+                }).blockingFirst();
             }
         };
     }
@@ -905,9 +916,8 @@ public class DefaultHttpClient implements RxHttpClient, RxStreamingHttpClient, R
      */
     protected URI resolveRequestURI(URI requestURI) {
         if (StringUtils.isNotEmpty(contextPath)) {
-            String rawPath = requestURI.getRawPath();
             try {
-                return new URI(StringUtils.prependUri(contextPath, rawPath));
+                return new URI(StringUtils.prependUri(contextPath, requestURI.toString()));
             } catch (URISyntaxException e) {
                 //should never happen
             }
@@ -1038,6 +1048,7 @@ public class DefaultHttpClient implements RxHttpClient, RxStreamingHttpClient, R
      * Resolve the filters for the request path.
      *
      * @param request The path
+     * @param requestURI The URI of the request
      * @return The filters
      */
     protected List<HttpClientFilter> resolveFilters(io.micronaut.http.HttpRequest<?> request, URI requestURI) {
@@ -1118,6 +1129,7 @@ public class DefaultHttpClient implements RxHttpClient, RxStreamingHttpClient, R
 
     /**
      * @param request           The request
+     * @param requestURI        The URI of the request
      * @param requestWrapper    The request wrapper
      * @param responsePublisher The response publisher
      * @param <I>               The input type
@@ -1145,6 +1157,7 @@ public class DefaultHttpClient implements RxHttpClient, RxStreamingHttpClient, R
 
     /**
      * @param request            The request
+     * @param requestURI         The URI of the request
      * @param requestContentType The request content type
      * @param permitsBody        Whether permits body
      * @return A {@link NettyRequestWriter}
@@ -1364,7 +1377,15 @@ public class DefaultHttpClient implements RxHttpClient, RxStreamingHttpClient, R
 
                     try {
                         if (errorStatus) {
-                            emitter.onError(new HttpClientResponseException(status.reasonPhrase(), response));
+                            try {
+                                HttpClientResponseException clientError = new HttpClientResponseException(
+                                        status.reasonPhrase(),
+                                        response
+                                );
+                                emitter.onError(clientError);
+                            } catch (Exception e) {
+                                emitter.onError(new HttpClientException("Exception occurred decoding error response: " + e.getMessage(), e));
+                            }
                         } else {
                             emitter.onNext(response);
                         }
@@ -1499,7 +1520,7 @@ public class DefaultHttpClient implements RxHttpClient, RxStreamingHttpClient, R
         ObjectMapper objectMapper = new ObjectMapperFactory().objectMapper(Optional.empty(), Optional.empty());
         ApplicationConfiguration applicationConfiguration = new ApplicationConfiguration();
         return MediaTypeCodecRegistry.of(
-            new JsonMediaTypeCodec(objectMapper, applicationConfiguration), new JsonStreamMediaTypeCodec(objectMapper, applicationConfiguration)
+            new JsonMediaTypeCodec(objectMapper, applicationConfiguration, null), new JsonStreamMediaTypeCodec(objectMapper, applicationConfiguration, null)
         );
     }
 

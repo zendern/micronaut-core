@@ -18,6 +18,7 @@ package io.micronaut.management.endpoint.processors;
 
 import io.micronaut.context.ApplicationContext;
 import io.micronaut.context.processor.ExecutableMethodProcessor;
+import io.micronaut.core.annotation.AnnotationMetadata;
 import io.micronaut.core.async.subscriber.Completable;
 import io.micronaut.core.convert.ConversionService;
 import io.micronaut.core.naming.NameUtils;
@@ -27,6 +28,7 @@ import io.micronaut.http.uri.UriTemplate;
 import io.micronaut.inject.BeanDefinition;
 import io.micronaut.inject.ExecutableMethod;
 import io.micronaut.management.endpoint.Endpoint;
+import io.micronaut.management.endpoint.EndpointDefaultConfiguration;
 import io.micronaut.web.router.DefaultRouteBuilder;
 
 import java.lang.annotation.Annotation;
@@ -51,16 +53,20 @@ abstract class AbstractEndpointRouteBuilder extends DefaultRouteBuilder implemen
 
     private final List<String> nonPathTypes;
 
+    private final EndpointDefaultConfiguration endpointDefaultConfiguration;
+
     /**
      * @param applicationContext The application context
      * @param uriNamingStrategy  The URI naming strategy
      * @param conversionService  The conversion service
      * @param nonPathTypesProviders A list of providers which defines paths not to be used as Path paramters
+     * @param endpointDefaultConfiguration Endpoints default Configuration
      */
     AbstractEndpointRouteBuilder(ApplicationContext applicationContext,
                                  UriNamingStrategy uriNamingStrategy,
                                  ConversionService<?> conversionService,
-                                 Collection<NonPathTypesProvider> nonPathTypesProviders) {
+                                 Collection<NonPathTypesProvider> nonPathTypesProviders,
+                                 EndpointDefaultConfiguration endpointDefaultConfiguration) {
         super(applicationContext, uriNamingStrategy, conversionService);
         this.beanContext = applicationContext;
         nonPathTypes = nonPathTypesProviders.stream()
@@ -68,6 +74,7 @@ abstract class AbstractEndpointRouteBuilder extends DefaultRouteBuilder implemen
                 .flatMap(List::stream)
                 .map(Class::getName)
                 .collect(Collectors.toList());
+        this.endpointDefaultConfiguration = endpointDefaultConfiguration;
     }
 
     /**
@@ -133,13 +140,28 @@ abstract class AbstractEndpointRouteBuilder extends DefaultRouteBuilder implemen
      * @return An {@link UriTemplate}
      */
     protected UriTemplate buildUriTemplate(ExecutableMethod<?, ?> method, String id) {
-        UriTemplate template = new UriTemplate(uriNamingStrategy.resolveUri(id));
+        UriTemplate template = new UriTemplate(resolveUriByRouteId(id));
         for (Argument argument : method.getArguments()) {
             if (isPathParameter(argument)) {
                 template = template.nest("/{" + argument.getName() + "}");
             }
         }
         return template;
+    }
+
+    /**
+     * @param id The route id
+     * @return {@link EndpointDefaultConfiguration#path} + resolved Uri based on UriNamingStrategy
+     */
+    String resolveUriByRouteId(String id) {
+        String uri = uriNamingStrategy.resolveUri(id);
+        if (endpointDefaultConfiguration.getPath().equals("/") && uri.charAt(0) == '/') {
+            return uri;
+        }
+        StringBuilder sb = new StringBuilder();
+        sb.append(endpointDefaultConfiguration.getPath());
+        sb.append(uri);
+        return sb.toString();
     }
 
     /**
@@ -150,6 +172,7 @@ abstract class AbstractEndpointRouteBuilder extends DefaultRouteBuilder implemen
         if (nonPathTypes.contains(argument.getType().getName())) {
             return false;
         }
-        return argument.getAnnotations().length == 0 || argument.getAnnotation(QueryValue.class) != null;
+        AnnotationMetadata annotationMetadata = argument.getAnnotationMetadata();
+        return annotationMetadata.isEmpty() || annotationMetadata.hasDeclaredAnnotation(QueryValue.class);
     }
 }

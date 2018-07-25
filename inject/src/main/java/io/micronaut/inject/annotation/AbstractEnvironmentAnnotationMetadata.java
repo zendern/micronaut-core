@@ -18,17 +18,19 @@ package io.micronaut.inject.annotation;
 
 import io.micronaut.context.env.Environment;
 import io.micronaut.core.annotation.AnnotationMetadata;
+import io.micronaut.core.annotation.AnnotationValue;
 import io.micronaut.core.annotation.Internal;
-import io.micronaut.core.convert.value.ConvertibleValues;
-import io.micronaut.core.convert.value.ConvertibleValuesMap;
 import io.micronaut.core.util.StringUtils;
 import io.micronaut.core.value.OptionalValues;
 
 import javax.annotation.Nullable;
+import java.lang.annotation.Annotation;
+import java.lang.reflect.Array;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Variation of {@link AnnotationMetadata} that is environment specific.
@@ -49,6 +51,59 @@ public abstract class AbstractEnvironmentAnnotationMetadata extends AbstractAnno
     protected AbstractEnvironmentAnnotationMetadata(DefaultAnnotationMetadata targetMetadata) {
         super(targetMetadata.declaredAnnotations, targetMetadata.allAnnotations);
         this.annotationMetadata = targetMetadata;
+    }
+
+    @Override
+    public <T extends Annotation> List<AnnotationValue<T>> getAnnotationValuesByType(Class<T> annotationType) {
+        Environment environment = getEnvironment();
+        List<AnnotationValue<T>> values = annotationMetadata.getAnnotationValuesByType(annotationType);
+        if (environment != null) {
+            return values.stream().map(entries ->
+                    new EnvironmentAnnotationValue<T>(environment, entries)
+            ).collect(Collectors.toList());
+        }
+        return values;
+    }
+
+    @Override
+    public <T extends Annotation> List<AnnotationValue<T>> getDeclaredAnnotationValuesByType(Class<T> annotationType) {
+        Environment environment = getEnvironment();
+        List<AnnotationValue<T>> values = annotationMetadata.getDeclaredAnnotationValuesByType(annotationType);
+        if (environment != null) {
+            return values.stream().map(entries -> new EnvironmentAnnotationValue<T>(environment, entries))
+                    .collect(Collectors.toList());
+        }
+        return values;
+    }
+
+    @Override
+    public <T extends Annotation> T[] getAnnotationsByType(Class<T> annotationClass) {
+        Environment environment = getEnvironment();
+        if (environment != null) {
+
+            List<AnnotationValue<T>> values = annotationMetadata.getAnnotationValuesByType(annotationClass);
+
+            return values.stream()
+                    .map(entries -> AnnotationMetadataSupport.buildAnnotation(annotationClass, EnvironmentConvertibleValuesMap.of(environment, entries.getValues())))
+                    .toArray(value -> (T[]) Array.newInstance(annotationClass, value));
+        } else {
+            return annotationMetadata.getAnnotationsByType(annotationClass);
+        }
+    }
+
+    @Override
+    public <T extends Annotation> T[] getDeclaredAnnotationsByType(Class<T> annotationClass) {
+        Environment environment = getEnvironment();
+        if (environment != null) {
+
+            List<AnnotationValue<T>> values = annotationMetadata.getDeclaredAnnotationValuesByType(annotationClass);
+
+            return values.stream()
+                    .map(entries -> AnnotationMetadataSupport.buildAnnotation(annotationClass, EnvironmentConvertibleValuesMap.of(environment, entries.getValues())))
+                    .toArray(value -> (T[]) Array.newInstance(annotationClass, value));
+        } else {
+            return annotationMetadata.getDeclaredAnnotationsByType(annotationClass);
+        }
     }
 
     @Override
@@ -92,17 +147,27 @@ public abstract class AbstractEnvironmentAnnotationMetadata extends AbstractAnno
     }
 
     @Override
-    public ConvertibleValues<Object> getValues(String annotation) {
-        Map<String, Map<CharSequence, Object>> allAnnotations = annotationMetadata.allAnnotations;
-        Map<String, Map<CharSequence, Object>> allStereotypes = annotationMetadata.allStereotypes;
-        return resolveValuesForEnvironment(annotation, allAnnotations, allStereotypes);
+    public <T extends Annotation> Optional<AnnotationValue<T>> getValues(String annotation) {
+        Environment env = getEnvironment();
+
+        Optional<AnnotationValue<T>> values = annotationMetadata.getValues(annotation);
+
+        if (env != null) {
+            return values.map(av -> new EnvironmentAnnotationValue<>(env, av));
+        }
+        return values;
     }
 
     @Override
-    public ConvertibleValues<Object> getDeclaredValues(String annotation) {
-        Map<String, Map<CharSequence, Object>> allAnnotations = annotationMetadata.declaredAnnotations;
-        Map<String, Map<CharSequence, Object>> allStereotypes = annotationMetadata.declaredStereotypes;
-        return resolveValuesForEnvironment(annotation, allAnnotations, allStereotypes);
+    public <T extends Annotation> Optional<AnnotationValue<T>> getDeclaredValues(String annotation) {
+        Environment env = getEnvironment();
+
+        Optional<AnnotationValue<T>> values = annotationMetadata.getDeclaredValues(annotation);
+
+        if (env != null) {
+            return values.map(av -> new EnvironmentAnnotationValue<>(env, av));
+        }
+        return values;
     }
 
     @Override
@@ -130,26 +195,13 @@ public abstract class AbstractEnvironmentAnnotationMetadata extends AbstractAnno
      */
     protected abstract @Nullable Environment getEnvironment();
 
-    private ConvertibleValues<Object> resolveValuesForEnvironment(String annotation, Map<String, Map<CharSequence, Object>> allAnnotations, Map<String, Map<CharSequence, Object>> allStereotypes) {
-        if (StringUtils.isNotEmpty(annotation)) {
-            if (allAnnotations != null) {
-                Map<CharSequence, Object> values = allAnnotations.get(annotation);
-                if (values != null) {
-                    return convertibleValuesOf(values);
-                } else if (allStereotypes != null) {
-                    return convertibleValuesOf(allStereotypes.get(annotation));
-                }
-            }
-        }
-        return ConvertibleValuesMap.empty();
-    }
-
-    private ConvertibleValues<Object> convertibleValuesOf(Map<CharSequence, Object> values) {
+    @Override
+    protected void addValuesToResults(List<AnnotationValue> results, AnnotationValue values) {
         Environment environment = getEnvironment();
         if (environment != null) {
-            return EnvironmentConvertibleValuesMap.of(environment, values);
+            results.add(new EnvironmentAnnotationValue(environment, values));
         } else {
-            return ConvertibleValues.of(values);
+            results.add(values);
         }
     }
 

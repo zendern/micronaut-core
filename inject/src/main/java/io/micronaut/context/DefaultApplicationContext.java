@@ -228,11 +228,13 @@ public class DefaultApplicationContext extends DefaultBeanContext implements App
                             if (dependentCandidate instanceof BeanDefinitionDelegate) {
                                 BeanDefinitionDelegate<?> parentDelegate = (BeanDefinitionDelegate) dependentCandidate;
                                 optional = parentDelegate.get(Named.class.getName(), String.class).map(Qualifiers::byName);
-                                parentDelegate.get(BeanDefinitionDelegate.PRIMARY_ATTRIBUTE, Boolean.class).ifPresent(isPrimary -> delegate.put(BeanDefinitionDelegate.PRIMARY_ATTRIBUTE, isPrimary));
-                                delegate.put(EachProperty.class.getName(), dependentType);
                             } else {
                                 Optional<String> qualiferName = dependentCandidate.getAnnotationNameByStereotype(javax.inject.Qualifier.class);
                                 optional = qualiferName.map(name -> Qualifiers.byAnnotation(dependentCandidate, name));
+                            }
+
+                            if (dependentCandidate.isPrimary()) {
+                                delegate.put(BeanDefinitionDelegate.PRIMARY_ATTRIBUTE, true);
                             }
 
                             optional.ifPresent(qualifier -> {
@@ -389,6 +391,11 @@ public class DefaultApplicationContext extends DefaultBeanContext implements App
             String bootstrapName = System.getProperty(BOOTSTRAP_NAME_PROPERTY);
             return StringUtils.isNotEmpty(bootstrapName) ? bootstrapName : BOOTSTRAP_NAME;
         }
+
+        @Override
+        protected boolean shouldDeduceEnvironments() {
+            return false;
+        }
     }
 
     /**
@@ -438,6 +445,11 @@ public class DefaultApplicationContext extends DefaultBeanContext implements App
         @Override
         protected void initializeContext(List<BeanDefinitionReference> contextScopeBeans, List<BeanDefinitionReference> processedBeans) {
             // no-op .. @Context scope beans are not started for bootstrap
+        }
+
+        @Override
+        protected void processParallelBeans() {
+            // no-op
         }
 
         @Override
@@ -525,6 +537,10 @@ public class DefaultApplicationContext extends DefaultBeanContext implements App
                 bootstrapEnvironment.addPropertySource(source);
             }
             bootstrapEnvironment.start();
+            for (String pkg : bootstrapEnvironment.getPackages()) {
+                addPackage(pkg);
+            }
+
             return bootstrapEnvironment;
         }
     }

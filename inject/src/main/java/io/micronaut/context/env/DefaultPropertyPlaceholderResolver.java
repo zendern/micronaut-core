@@ -35,6 +35,11 @@ public class DefaultPropertyPlaceholderResolver implements PropertyPlaceholderRe
      */
     public static final String PREFIX = "${";
 
+    /**
+     * Suffix for placeholder in properties.
+     */
+    public static final String SUFFIX = "}";
+
     private final PropertyResolver environment;
     private final String prefix;
 
@@ -44,6 +49,11 @@ public class DefaultPropertyPlaceholderResolver implements PropertyPlaceholderRe
     public DefaultPropertyPlaceholderResolver(PropertyResolver environment) {
         this.environment = environment;
         this.prefix = PREFIX;
+    }
+
+    @Override
+    public String getPrefix() {
+        return this.prefix;
     }
 
     @Override
@@ -98,32 +108,28 @@ public class DefaultPropertyPlaceholderResolver implements PropertyPlaceholderRe
             defaultValue = expr.substring(j + 1, expr.length());
             expr = expr.substring(0, j);
         }
-        if (expr.indexOf('.') > -1) {
-            if (defaultValue != null) {
-                if (defaultValue.contains(":")) {
-                    StringBuilder resolved = new StringBuilder();
-                    resolveExpression(resolved, expr, defaultValue);
-                    builder.append(environment.getProperty(expr, String.class, resolved.toString()));
-                } else {
-                    builder.append(environment.getProperty(expr, String.class, defaultValue));
-                }
-            } else {
-                String finalExpr = expr;
-                builder.append(environment.getProperty(expr, String.class).orElseThrow(() -> new ConfigurationException("Could not resolve placeholder ${" + finalExpr + "} in value: " + str)));
-            }
-        } else if (expr.matches("^[\\p{Lu}_]+")) {
+        if (environment.containsProperty(expr)) {
+            String finalExpr = expr;
+            builder.append(environment.getProperty(expr, String.class).orElseThrow(() -> new ConfigurationException("Could not resolve placeholder ${" + finalExpr + "} in value: " + str)));
+            return;
+        }
+        if (expr.matches("^[\\p{Lu}_]+")) {
             String v = System.getenv(expr);
             if (StringUtils.isNotEmpty(v)) {
                 builder.append(v);
-            } else if (defaultValue != null) {
-                builder.append(defaultValue);
-            } else {
-                throw new ConfigurationException("Could not resolve placeholder ${" + expr + "} in value: " + str);
+                return;
             }
-        } else if (defaultValue != null) {
-            builder.append(defaultValue);
-        } else {
-            throw new ConfigurationException("Could not resolve placeholder ${" + expr + "} in value: " + str);
         }
+        if (defaultValue != null) {
+            if (defaultValue.contains(":")) {
+                StringBuilder resolved = new StringBuilder();
+                resolveExpression(resolved, expr, defaultValue);
+                builder.append(resolved.toString());
+            } else {
+                builder.append(defaultValue);
+            }
+            return;
+        }
+        throw new ConfigurationException("Could not resolve placeholder ${" + expr + "} in value: " + str);
     }
 }

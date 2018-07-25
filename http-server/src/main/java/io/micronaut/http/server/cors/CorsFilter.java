@@ -28,6 +28,7 @@ import static io.micronaut.http.HttpHeaders.ORIGIN;
 import static io.micronaut.http.HttpHeaders.VARY;
 
 import io.micronaut.core.async.publisher.Publishers;
+import io.micronaut.core.order.Ordered;
 import io.micronaut.core.type.Argument;
 import io.micronaut.http.HttpHeaders;
 import io.micronaut.http.HttpMethod;
@@ -74,13 +75,19 @@ public class CorsFilter implements HttpServerFilter {
             if (response.isPresent()) {
                 return Publishers.just(response.get());
             } else {
-                return Publishers.then(chain.proceed(request), mutableHttpResponse ->
-                    handleResponse(request, mutableHttpResponse)
-                );
+                return Publishers.map(chain.proceed(request), mutableHttpResponse -> {
+                    handleResponse(request, mutableHttpResponse);
+                    return mutableHttpResponse;
+                });
             }
         } else {
             return chain.proceed(request);
         }
+    }
+
+    @Override
+    public int getOrder() {
+        return Ordered.HIGHEST_PRECEDENCE;
     }
 
     /**

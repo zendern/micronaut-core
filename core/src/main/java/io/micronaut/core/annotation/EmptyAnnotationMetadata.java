@@ -16,7 +16,6 @@
 
 package io.micronaut.core.annotation;
 
-import io.micronaut.core.convert.value.ConvertibleValues;
 import io.micronaut.core.value.OptionalValues;
 
 import java.lang.annotation.Annotation;
@@ -73,13 +72,13 @@ class EmptyAnnotationMetadata implements AnnotationMetadata {
     }
 
     @Override
-    public ConvertibleValues<Object> getValues(String annotation) {
-        return ConvertibleValues.empty();
+    public <T extends Annotation> Optional<AnnotationValue<T>> getValues(String annotation) {
+        return Optional.empty();
     }
 
     @Override
-    public ConvertibleValues<Object> getDeclaredValues(String annotation) {
-        return ConvertibleValues.empty();
+    public <T extends Annotation> Optional<AnnotationValue<T>> getDeclaredValues(String annotation) {
+        return Optional.empty();
     }
 
     @Override
@@ -90,6 +89,16 @@ class EmptyAnnotationMetadata implements AnnotationMetadata {
     @Override
     public <T> Optional<T> getDefaultValue(String annotation, String member, Class<T> requiredType) {
         return Optional.empty();
+    }
+
+    @Override
+    public <T extends Annotation> List<AnnotationValue<T>> getAnnotationValuesByType(Class<T> annotationType) {
+        return Collections.emptyList();
+    }
+
+    @Override
+    public <T extends Annotation> List<AnnotationValue<T>> getDeclaredAnnotationValuesByType(Class<T> annotationType) {
+        return Collections.emptyList();
     }
 
     @Override

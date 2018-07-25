@@ -21,8 +21,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import io.micronaut.aop.MethodInterceptor;
 import io.micronaut.aop.MethodInvocationContext;
+import io.micronaut.codec.CodecConfiguration;
 import io.micronaut.context.BeanContext;
-import io.micronaut.context.annotation.Parameter;
 import io.micronaut.core.async.publisher.Publishers;
 import io.micronaut.core.async.subscriber.CompletionAwareSubscriber;
 import io.micronaut.core.beans.BeanMap;
@@ -40,13 +40,7 @@ import io.micronaut.http.HttpResponse;
 import io.micronaut.http.HttpStatus;
 import io.micronaut.http.MediaType;
 import io.micronaut.http.MutableHttpRequest;
-import io.micronaut.http.annotation.Body;
-import io.micronaut.http.annotation.Consumes;
-import io.micronaut.http.annotation.CookieValue;
-import io.micronaut.http.annotation.Header;
-import io.micronaut.http.annotation.Headers;
-import io.micronaut.http.annotation.HttpMethodMapping;
-import io.micronaut.http.annotation.Produces;
+import io.micronaut.http.annotation.*;
 import io.micronaut.http.client.*;
 import io.micronaut.http.client.exceptions.HttpClientException;
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
@@ -219,8 +213,8 @@ public class HttpClientIntroductionAdvice implements MethodInterceptor<Object, O
                     ConversionService.SHARED.convert(cookieValue, String.class)
                         .ifPresent(o -> cookies.add(new NettyCookie(finalCookieName, o)));
 
-                } else if (argument.isAnnotationPresent(Parameter.class)) {
-                    String parameterName = argument.getAnnotation(Parameter.class).value();
+                } else if (argument.isAnnotationPresent(QueryValue.class)) {
+                    String parameterName = argument.getAnnotation(QueryValue.class).value();
                     if (!StringUtils.isEmpty(parameterName)) {
                         MutableArgumentValue<?> value = parameters.get(argumentName);
                         ConversionService.SHARED.convert(value.getValue(), String.class)
@@ -538,7 +532,11 @@ public class HttpClientIntroductionAdvice implements MethodInterceptor<Object, O
                         objectMapper.configure(feature, false);
                     }
 
-                    defaultClient.setMediaTypeCodecRegistry(MediaTypeCodecRegistry.of(new JsonMediaTypeCodec(objectMapper, beanContext.getBean(ApplicationConfiguration.class))));
+                    defaultClient.setMediaTypeCodecRegistry(
+                            MediaTypeCodecRegistry.of(
+                                    new JsonMediaTypeCodec(objectMapper,
+                                            beanContext.getBean(ApplicationConfiguration.class),
+                                            beanContext.findBean(CodecConfiguration.class, Qualifiers.byName(JsonMediaTypeCodec.CONFIGURATION_QUALIFIER)).orElse(null))));
                 }
             }
             return client;

@@ -44,10 +44,10 @@ import io.micronaut.http.hateos.Link;
 import io.micronaut.http.multipart.PartData;
 import io.micronaut.http.multipart.StreamingFileUpload;
 import io.micronaut.http.netty.NettyMutableHttpResponse;
-import io.micronaut.http.netty.buffer.NettyByteBufferFactory;
+import io.micronaut.buffer.netty.NettyByteBufferFactory;
 import io.micronaut.http.netty.content.HttpContentUtil;
 import io.micronaut.http.netty.stream.StreamedHttpRequest;
-import io.micronaut.http.server.binding.RequestBinderRegistry;
+import io.micronaut.http.server.binding.RequestArgumentSatisfier;
 import io.micronaut.http.server.exceptions.ExceptionHandler;
 import io.micronaut.http.server.exceptions.InternalServerException;
 import io.micronaut.http.server.netty.async.ContextCompletionAwareSubscriber;
@@ -108,6 +108,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
@@ -120,6 +121,8 @@ import java.util.stream.Collectors;
 class RoutingInBoundHandler extends SimpleChannelInboundHandler<io.micronaut.http.HttpRequest<?>> {
 
     private static final Logger LOG = LoggerFactory.getLogger(RoutingInBoundHandler.class);
+    private static final Pattern IGNORABLE_ERROR_MESSAGE = Pattern.compile(
+            "^.*(?:connection.*(?:reset|closed|abort|broken)|broken.*pipe).*$", Pattern.CASE_INSENSITIVE);
 
     private final Router router;
     private final ExecutorSelector executorSelector;
@@ -138,7 +141,7 @@ class RoutingInBoundHandler extends SimpleChannelInboundHandler<io.micronaut.htt
      * @param customizableResponseTypeHandlerRegistry The customizable response type handler registry
      * @param staticResourceResolver                  The static resource resolver
      * @param serverConfiguration                     The Netty HTTP server configuration
-     * @param binderRegistry                          The Request binder registry
+     * @param requestArgumentSatisfier                The Request argument satisfier
      * @param executorSelector                        The executor selector
      * @param ioExecutor                              The IO executor
      */
@@ -149,7 +152,7 @@ class RoutingInBoundHandler extends SimpleChannelInboundHandler<io.micronaut.htt
         NettyCustomizableResponseTypeHandlerRegistry customizableResponseTypeHandlerRegistry,
         StaticResourceResolver staticResourceResolver,
         NettyHttpServerConfiguration serverConfiguration,
-        RequestBinderRegistry binderRegistry,
+        RequestArgumentSatisfier requestArgumentSatisfier,
         ExecutorSelector executorSelector,
         ExecutorService ioExecutor) {
 
@@ -160,7 +163,7 @@ class RoutingInBoundHandler extends SimpleChannelInboundHandler<io.micronaut.htt
         this.ioExecutor = ioExecutor;
         this.executorSelector = executorSelector;
         this.router = router;
-        this.requestArgumentSatisfier = new RequestArgumentSatisfier(binderRegistry);
+        this.requestArgumentSatisfier = requestArgumentSatisfier;
         this.serverConfiguration = serverConfiguration;
     }
 
@@ -234,16 +237,8 @@ class RoutingInBoundHandler extends SimpleChannelInboundHandler<io.micronaut.htt
         }
 
         if (errorRoute != null) {
-            //handling connection reset by peer exceptions
-            if (cause instanceof IOException) {
-                if (LOG.isTraceEnabled()) {
-                    LOG.trace("IOException occurred (connection reset?): " + cause.getMessage(), cause);
-                }
-            } else {
-                if (LOG.isErrorEnabled()) {
-                    LOG.error("Unexpected error occurred: " + cause.getMessage(), cause);
-                }
-            }
+            logException(cause);
+
             if (LOG.isDebugEnabled()) {
                 LOG.debug("Found matching exception handler for exception [{}]: {}", cause.getMessage(), errorRoute);
             }
@@ -905,6 +900,8 @@ class RoutingInBoundHandler extends SimpleChannelInboundHandler<io.micronaut.htt
                         Optional<MediaType> specifiedMediaType = response.getContentType();
                         MediaType responseMediaType = specifiedMediaType.orElse(defaultResponseMediaType);
 
+                        applyConfiguredHeaders(response.getHeaders());
+
                         streamHttpContentChunkByChunk(
                                 context,
                                 request,
@@ -984,15 +981,7 @@ class RoutingInBoundHandler extends SimpleChannelInboundHandler<io.micronaut.htt
             Optional<MediaType> specifiedMediaType = response.getContentType();
             MediaType responseMediaType = specifiedMediaType.orElse(defaultResponseMediaType);
 
-            MutableHttpHeaders headers = response.getHeaders();
-            if (serverConfiguration.isDateHeader() && !headers.contains(HttpHeaders.DATE)) {
-                headers.date(LocalDateTime.now());
-            }
-            serverConfiguration.getServerHeader().ifPresent((server) -> {
-                if (!headers.contains(HttpHeaders.SERVER)) {
-                    headers.add(HttpHeaders.SERVER, server);
-                }
-            });
+            applyConfiguredHeaders(response.getHeaders());
 
             Optional<?> responseBody = response.getBody();
             if (responseBody.isPresent()) {
@@ -1189,10 +1178,15 @@ class RoutingInBoundHandler extends SimpleChannelInboundHandler<io.micronaut.htt
                 if (finalRoute instanceof MethodBasedRouteMatch) {
                     final MethodBasedRouteMatch rm = (MethodBasedRouteMatch) finalRoute;
                     if (rm.hasAnnotation(Status.class)) {
-                        status = rm.getAnnotation(Status.class).value();
+                        status = rm.getValue(Status.class, HttpStatus.class).orElse(null);
                     }
                 }
-                response = HttpResponse.status(status).body(message);
+
+                if (status != null) {
+                    response = HttpResponse.status(status).body(message);
+                } else {
+                    response = HttpResponse.ok(message);
+                }
             }
         }
         return response;
@@ -1338,9 +1332,7 @@ class RoutingInBoundHandler extends SimpleChannelInboundHandler<io.micronaut.htt
 
     @SuppressWarnings("unchecked")
     private void writeDefaultErrorResponse(ChannelHandlerContext ctx, NettyHttpRequest nettyHttpRequest, Throwable cause) {
-        if (LOG.isErrorEnabled()) {
-            LOG.error("Unexpected error occurred: " + cause.getMessage(), cause);
-        }
+        logException(cause);
 
         MutableHttpResponse<?> error = io.micronaut.http.HttpResponse.serverError()
                 .body(new JsonError("Internal Server Error: " + cause.getMessage()));
@@ -1350,6 +1342,30 @@ class RoutingInBoundHandler extends SimpleChannelInboundHandler<io.micronaut.htt
                 new AtomicReference<>(nettyHttpRequest),
                 Flowable.just(error)
         );
+    }
+
+    private void logException(Throwable cause) {
+        //handling connection reset by peer exceptions
+        if (cause instanceof IOException && IGNORABLE_ERROR_MESSAGE.matcher(cause.getMessage()).matches()) {
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("Swallowed an IOException caused by client connectivity: " + cause.getMessage(), cause);
+            }
+        } else {
+            if (LOG.isErrorEnabled()) {
+                LOG.error("Unexpected error occurred: " + cause.getMessage(), cause);
+            }
+        }
+    }
+
+    private void applyConfiguredHeaders(MutableHttpHeaders headers) {
+        if (serverConfiguration.isDateHeader() && !headers.contains("Date")) {
+            headers.date(LocalDateTime.now());
+        }
+        serverConfiguration.getServerHeader().ifPresent((server) -> {
+            if (!headers.contains("Server")) {
+                headers.add("Server", server);
+            }
+        });
     }
 
     /**

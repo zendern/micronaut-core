@@ -18,6 +18,7 @@ package io.micronaut.http.annotation;
 
 import static java.lang.annotation.RetentionPolicy.RUNTIME;
 
+import io.micronaut.context.annotation.AliasFor;
 import io.micronaut.core.bind.annotation.Bindable;
 
 import java.lang.annotation.Documented;
@@ -26,10 +27,11 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.Target;
 
 /**
- * Indicates that the parameter to a method should be bound from a value in the query string of the URI.
+ * Indicates that the parameter to a method should be bound from a value in the query string or path of the URI.
  *
  * @author Graeme Rocher
  * @see java.net.URI#getQuery()
+ * @see java.net.URI#getPath()
  * @since 1.0
  */
 @Documented
@@ -41,5 +43,6 @@ public @interface QueryValue {
     /**
      * @return The name of the parameter
      */
+    @AliasFor(annotation = Bindable.class, member = "value")
     String value() default "";
 }

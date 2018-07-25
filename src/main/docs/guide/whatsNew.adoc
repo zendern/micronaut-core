@@ -1,54 +1,49 @@
-This section covers what's new since the previous release of Micronaut.
+Apart from https://github.com/micronaut-projects/micronaut-core/milestone/3?closed=1[issues resolved and minor enhancements] since the last release of Micronaut, this section covers significant new features.
 
-=== Metrics Support
+=== Improved Metrics Support
 
-The first version of support for Metrics via http://micrometer.io[Micrometer] is now available. Metrics are exposed via the <<metricsEndpoint,Metrics Endpoint>> and can be extensively customized.
+Metrics support has been improved with support for metrics for:
 
-The first version of Metrics support includes support for Statsd, Atlas, Graphite and Prometheus with more Metrics backends coming in the future.
+* Micronaut Thread Pools
+* Kafka Metrics
 
-See the section on the <<metricsEndpoint,Metrics Endpoint>> for more information.
+=== Apache Kafka Support
 
-=== Server Sent Event (SSE) Client
+Micronaut can now be used to build Message-Driven Microservices with Apache Kafka.
 
-A new api:http.client.sse.SseClient[] interface has been introduced that provides a client for streaming Server Sent Events (SSE) on the server. The client can also be used for testing SSE controllers.
+The new ann:configuration.kafka.annotation.KafkaClient[] annotation supports declarative, compile-time creation of Kafka `Producer` instances.
 
-In additional the `@Client` annotation has been updated to add support for automatically implementing streaming interfaces for both JSON and SSE streaming.
+Whilst the ann:configuration.kafka.annotation.KafkaListener[] annotation supports defining Kafka consumers.
 
-See the section on <<clientAnnotationStreaming, Client Streaming>> for more information.
+See the <<kafka, Kafka>> section of the documentation for more information.
 
-=== Blocking I/O Support
+The Micronaut CLI now includes a Kafka *feature*, which adds the necessary dependency and config to use Kafka within your project. In addition, the CLI also includes a Kafka *profile*, which can be used to create messaging services without the need for an HTTP server. See the <<kafkaCli, Kafka>> section for more information.
 
-It is now possible to return a api:core.io.Writable[] and have the operation offloaded to a the I/O thread pool, thus improving the ability to interface with APIs that do not yet support non-blocking I/O:
+=== Annotation Metadata Processing Support Improved
 
-[source,java]
+All annotation metadata in Micronaut is produced as compile time, resulting in significant improvements to startup time and memory consumption over traditional frameworks.
+
+This support has been enhanced to better support repeated annotations such that repeated annotations are normalized at compile time, avoiding the need to process them and compensate for the difference between a single annotation definition and multiple.
+
+The api:core.annotation.AnnotationMetadata[] interface now includes methods such as `getAnnotationValuesByType` and `getDeclaredAnnotationValuesByType` that allow the retrieval of the repeated annotation values that are computed at compile time.
+
+=== Reactive Postgres Driver Support
+
+Support has been added for the https://github.com/reactiverse/reactive-pg-client[Postgres Reactive Client] project allowing building non-blocking, reactive applications with Postgres SQL and Micronaut. See the documentation on <<postgresSupport, Postgres Reactive Client Support>> for more information.
+
+=== CLI Improvements
+
+Thanks to a contribution from https://github.com/remkop[Remko Popma] the CLI has been re-written on top of https://github.com/remkop/picocli[PicoCLI] resulting in improvements to documentation, TAB completion and code maintainability.
+
+=== Spring Transaction Management for SQL
+
+Regular JDBC support now optionally supports transaction management via Spring's transaction manager with the addition of the following dependencies to your classpath:
+
+.build.gradle
+[source,groovy]
 ----
-@Get(uri = "/welcome", produces = MediaType.TEXT_PLAIN)
-Writable render() { // <2>
-    return writer -> template.make( // <3>
-        CollectionUtils.mapOf(
-                "firstName", "Fred",
-                "lastName", "Flintstone"
-        )
-    ).writeTo(writer);
+dependencies {
+    compile "io.micronaut:spring"
+    runtime "org.springframework:spring-jdbc"
 }
 ----
-
-See the section on <<serverIO, Writing Response Data>> for more information.
-
-=== Support for OpenFaaS
-
-Micronaut functions can now be executed from the CLI and will read from `System.in` the data required to execute a function.
-
-This means it is possible to deploy functions developed with Micronaut to Serverless platforms that package functions within containers such as OpenFaaS, Fn etc.
-
-The command line has also been updated with a `openfaas` feature which will create the necessary `Dockerfile` ready for deployment to OpenFaaS:
-
-.Creating an OpenFaaS Function
-[source,bash]
-----
-$ mn create-function foo --features openfaas
-----
-
-=== Kotlin Optional Type Support
-
-Beans can now be injected optionally using Kotlin nullable types without the need for the `@Nullable` annotation.

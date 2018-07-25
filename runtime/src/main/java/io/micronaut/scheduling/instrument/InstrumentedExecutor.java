@@ -26,7 +26,7 @@ import java.util.concurrent.Executor;
  * @author Graeme Rocher
  * @since 1.0
  */
-public interface InstrumentedExecutor extends Executor {
+public interface InstrumentedExecutor extends Executor, RunnableInstrumenter {
 
     /**
      * Implementors can override to specify the target {@link Executor}.
@@ -40,13 +40,4 @@ public interface InstrumentedExecutor extends Executor {
         getTarget().execute(instrument(command));
     }
 
-    /**
-     * Implementors can override to instrument a Runnable.
-     *
-     * @param command The command to instrument
-     * @return The instrumented runnable
-     */
-    default Runnable instrument(Runnable command) {
-        return command;
-    }
 }

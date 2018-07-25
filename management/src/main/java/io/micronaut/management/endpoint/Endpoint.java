@@ -20,7 +20,6 @@ import static java.lang.annotation.RetentionPolicy.RUNTIME;
 
 import io.micronaut.context.annotation.AliasFor;
 import io.micronaut.context.annotation.ConfigurationReader;
-import io.micronaut.context.annotation.Executable;
 import io.micronaut.context.annotation.Requires;
 
 import javax.inject.Singleton;
@@ -39,8 +38,7 @@ import java.lang.annotation.Target;
 @Retention(RUNTIME)
 @Target(ElementType.TYPE)
 @Singleton
-@ConfigurationReader
-@Executable
+@ConfigurationReader(prefix = EndpointConfiguration.PREFIX)
 @Requires(condition = EndpointEnabledCondition.class)
 public @interface Endpoint {
 

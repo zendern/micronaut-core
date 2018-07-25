@@ -94,6 +94,16 @@ ext {
                     group  : 'io.micrometer',
                     name   : 'micrometer-registry-statsd'
             ],
+            'mongo' : [
+                    version: mongoVersion,
+                    group: 'org.mongodb',
+                    modules: ['mongodb-driver-async', 'mongo-java-driver']
+            ],
+            'mongo.reactive': [
+                    version: '1.8.0',
+                    group: 'org.mongodb',
+                    name: 'mongodb-driver-reactivestreams'
+            ],
             neo4j: [
                 version: neo4jVersion,
                 group:'org.neo4j.test',
@@ -110,6 +120,11 @@ ext {
                 name:'netty-codec-http',
                 modules:['netty-handler','netty-handler-proxy']
             ],
+            picocli: [
+                    version: picocliVersion,
+                    group:'info.picocli',
+                    name:'picocli'
+            ],
             lettuce: [
                 version: lettuceVersion,
                 group:'io.lettuce',
@@ -120,7 +135,7 @@ ext {
                 version: springVersion,
                 group:'org.springframework',
                 name: 'spring-core',
-                modules:['spring-context', 'spring-tx', 'spring-orm']
+                modules:['spring-context', 'spring-tx', 'spring-orm', 'spring-jdbc']
             ],
             snakeyaml: [
                 version: yamlVersion,
@@ -142,6 +157,11 @@ ext {
                 version:reactiveStreamsVersion,
                 group:'org.reactivestreams',
                 name:'reactive-streams'
+            ],
+            'reactive.pg.client': [
+                    version: reactivePgClientVersion,
+                    group:'io.reactiverse',
+                    name:'reactive-pg-client'
             ],
             rxjava1: [
                 version: rxJava1Version,

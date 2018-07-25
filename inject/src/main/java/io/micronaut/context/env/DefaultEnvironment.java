@@ -32,6 +32,7 @@ import io.micronaut.core.io.service.ServiceDefinition;
 import io.micronaut.core.io.service.SoftServiceLoader;
 import io.micronaut.core.naming.NameUtils;
 import io.micronaut.core.order.OrderUtil;
+import io.micronaut.core.reflect.ClassUtils;
 import io.micronaut.core.util.CollectionUtils;
 import io.micronaut.core.util.StringUtils;
 import io.micronaut.inject.BeanConfiguration;
@@ -88,7 +89,7 @@ public class DefaultEnvironment extends PropertySourcePropertyResolver implement
     private final AtomicBoolean running = new AtomicBoolean(false);
     private Collection<PropertySourceLoader> propertySourceLoaderList;
     private final Map<String, PropertySourceLoader> loaderByFormatMap = new ConcurrentHashMap<>();
-
+    private final Map<String, Boolean> presenceCache = new ConcurrentHashMap<>();
     private final AtomicBoolean reading = new AtomicBoolean(false);
 
     /**
@@ -126,7 +127,7 @@ public class DefaultEnvironment extends PropertySourcePropertyResolver implement
         Set<String> specifiedNames = new HashSet<>(3);
         specifiedNames.addAll(CollectionUtils.setOf(names));
 
-        if (!specifiedNames.contains(Environment.FUNCTION)) {
+        if (!specifiedNames.contains(Environment.FUNCTION) && shouldDeduceEnvironments()) {
             EnvironmentsAndPackage environmentsAndPackage = getEnvironmentsAndPackage();
             specifiedNames.addAll(environmentsAndPackage.enviroments);
             String aPackage = environmentsAndPackage.aPackage;
@@ -141,10 +142,15 @@ public class DefaultEnvironment extends PropertySourcePropertyResolver implement
             CharSequence.class, Class.class, new StringToClassConverter(classLoader)
         );
         conversionService.addConverter(
-            Object[].class, Class[].class, new StringArrayToClassArrayConverter(classLoader)
+            Object[].class, Class[].class, new StringArrayToClassArrayConverter(conversionService)
         );
         this.resourceLoader = resourceLoader;
         this.annotationScanner = createAnnotationScanner(classLoader);
+    }
+
+    @Override
+    public boolean isPresent(String className) {
+        return presenceCache.computeIfAbsent(className, s -> ClassUtils.isPresent(className, getClassLoader()));
     }
 
     @Override
@@ -229,6 +235,9 @@ public class DefaultEnvironment extends PropertySourcePropertyResolver implement
     @Override
     public Environment start() {
         if (running.compareAndSet(false, true)) {
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("Starting environment {} for active names {}", this, getActiveNames());
+            }
             if (reading.compareAndSet(false, true)) {
 
                 readPropertySources(getPropertySourceRootName());
@@ -246,6 +255,7 @@ public class DefaultEnvironment extends PropertySourcePropertyResolver implement
     @Override
     public Environment stop() {
         running.set(false);
+        reading.set(false);
         synchronized (catalog) {
             for (int i = 0; i < catalog.length; i++) {
                 catalog[i] = null;
@@ -309,6 +319,15 @@ public class DefaultEnvironment extends PropertySourcePropertyResolver implement
     }
 
     /**
+     * @return Whether environment names and packages should be deduced
+     */
+    protected boolean shouldDeduceEnvironments() {
+        return true;
+    }
+
+
+
+    /**
      * Creates the default annotation scanner.
      *
      * @param classLoader The class loader
@@ -330,6 +349,7 @@ public class DefaultEnvironment extends PropertySourcePropertyResolver implement
      */
     protected void readPropertySources(String name) {
         List<PropertySource> propertySources = readPropertySourceList(name);
+        propertySources.addAll(this.propertySources.values());
         propertySources.addAll(readPropertySourceListFromFiles(System.getProperty(PROPERTY_SOURCES_KEY)));
         propertySources.addAll(readPropertySourceListFromFiles(
             readPropertySourceListKeyFromEnvironment())
@@ -359,7 +379,7 @@ public class DefaultEnvironment extends PropertySourcePropertyResolver implement
      * @return The list of property sources for each file
      */
     protected List<PropertySource> readPropertySourceListFromFiles(String files) {
-        List<PropertySource> propertySources = new ArrayList<>(this.propertySources.values());
+        List<PropertySource> propertySources = new ArrayList<>();
         Collection<PropertySourceLoader> propertySourceLoaders = getPropertySourceLoaders();
         Optional<Collection<String>> filePathList = Optional.ofNullable(files)
             .filter(value -> !value.isEmpty())
@@ -394,7 +414,7 @@ public class DefaultEnvironment extends PropertySourcePropertyResolver implement
      * @return The list of property sources
      */
     protected List<PropertySource> readPropertySourceList(String name) {
-        List<PropertySource> propertySources = new ArrayList<>(this.propertySources.values());
+        List<PropertySource> propertySources = new ArrayList<>();
         Collection<PropertySourceLoader> propertySourceLoaders = getPropertySourceLoaders();
         if (propertySourceLoaders.isEmpty()) {
             loadPropertySourceFromLoader(name, new PropertiesPropertySourceLoader(), propertySources);

@@ -18,6 +18,7 @@ package io.micronaut.http.annotation;
 
 import static java.lang.annotation.RetentionPolicy.RUNTIME;
 
+import io.micronaut.context.annotation.AliasFor;
 import io.micronaut.core.bind.annotation.Bindable;
 
 import java.lang.annotation.*;
@@ -34,7 +35,7 @@ import java.lang.annotation.*;
  */
 @Documented
 @Retention(RUNTIME)
-@Target({ElementType.PARAMETER, ElementType.TYPE}) // this can be either type or param
+@Target({ElementType.PARAMETER, ElementType.TYPE, ElementType.METHOD}) // this can be either type or param
 @Repeatable(value = Headers.class)
 @Bindable
 public @interface Header {
@@ -43,12 +44,14 @@ public @interface Header {
      * If used as a bound parameter, this is the header name. If used on a class level this is value and not the header name.
      * @return The name of the header, otherwise it is inferred from the parameter name
      */
+    @AliasFor(annotation = Bindable.class, member = "value")
     String value() default "";
 
     /**
      * If used on a class level with @Headers this is the header name and value is the value.
      * @return name of header when using with @Headers
      */
+    @AliasFor(annotation = Bindable.class, member = "value")
     String name() default "";
 
 }

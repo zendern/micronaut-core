@@ -17,9 +17,9 @@ package io.micronaut.ast.groovy.annotation
 
 import groovy.transform.CompileStatic
 import io.micronaut.core.convert.ConversionService
+import io.micronaut.core.util.StringUtils
 import io.micronaut.core.value.OptionalValues
 import io.micronaut.inject.annotation.AbstractAnnotationMetadataBuilder
-import io.micronaut.inject.annotation.AnnotationValue
 import org.codehaus.groovy.ast.AnnotatedNode
 import org.codehaus.groovy.ast.AnnotationNode
 import org.codehaus.groovy.ast.ClassHelper
@@ -32,7 +32,10 @@ import org.codehaus.groovy.ast.expr.ConstantExpression
 import org.codehaus.groovy.ast.expr.Expression
 import org.codehaus.groovy.ast.expr.ListExpression
 import org.codehaus.groovy.ast.expr.PropertyExpression
+import org.codehaus.groovy.ast.stmt.ReturnStatement
+import org.codehaus.groovy.ast.stmt.Statement
 
+import java.lang.annotation.Repeatable
 import java.lang.reflect.Array
 
 /**
@@ -43,12 +46,24 @@ import java.lang.reflect.Array
  */
 @CompileStatic
 class GroovyAnnotationMetadataBuilder extends AbstractAnnotationMetadataBuilder<AnnotatedNode, AnnotationNode> {
-
+    public static Map<String, Map<? extends AnnotatedNode, Expression>> ANNOTATION_DEFAULTS = new LinkedHashMap<>()
     public static final ClassNode ANN_OVERRIDE = ClassHelper.make(Override.class)
 
     @Override
     protected AnnotatedNode getTypeForAnnotation(AnnotationNode annotationMirror) {
         return annotationMirror.classNode
+    }
+
+    @Override
+    protected String getRepeatableName(AnnotationNode annotationMirror) {
+        List<AnnotationNode> annotationNodes = annotationMirror.classNode.getAnnotations(ClassHelper.makeCached(Repeatable))
+        if (annotationNodes) {
+            Expression expression = annotationNodes.get(0).getMember("value")
+            if (expression instanceof ClassExpression) {
+                return ((ClassExpression)expression).type.name
+            }
+        }
+        return null
     }
 
     @Override
@@ -99,6 +114,65 @@ class GroovyAnnotationMetadataBuilder extends AbstractAnnotationMetadataBuilder<
     }
 
     @Override
+    protected Map<? extends AnnotatedNode, ?> readAnnotationDefaultValues(AnnotationNode annotationMirror) {
+        Map<String, Map<? extends AnnotatedNode, Expression>> defaults = ANNOTATION_DEFAULTS
+        ClassNode classNode = annotationMirror.classNode
+        String annotationName = classNode.name
+
+        if (!defaults.containsKey(annotationName)) {
+
+            List<MethodNode> methods = new ArrayList<>(classNode.getMethods())
+            Map<? extends AnnotatedNode, Expression> defaultValues = new HashMap<>()
+
+            if (classNode.isResolved()) {
+                Class resolved = classNode.getTypeClass()
+                for (MethodNode method: methods) {
+                    def defaultValue = resolved.getDeclaredMethod(method.getName()).defaultValue
+                    if (defaultValue != null) {
+                        if (defaultValue instanceof Class) {
+                            defaultValues.put(method, new ClassExpression(ClassHelper.makeCached((Class)defaultValue)))
+                        } else {
+                            if (defaultValue instanceof String) {
+                                if (StringUtils.isNotEmpty((String)defaultValue)) {
+                                    defaultValues.put(method, new ConstantExpression(defaultValue))
+                                }
+                            } else {
+                                defaultValues.put(method, new ConstantExpression(defaultValue))
+                            }
+                        }
+                    }
+                }
+            } else {
+                for (MethodNode method: methods) {
+                    Statement stmt = method.code
+                    if (stmt instanceof ReturnStatement) {
+                        def expression = ((ReturnStatement) stmt).expression
+                        if (expression instanceof ConstantExpression) {
+                            ConstantExpression ce = (ConstantExpression) expression
+                            def v = ce.value
+                            if (v != null) {
+                                if (v instanceof String) {
+                                    if (StringUtils.isNotEmpty((String)v)) {
+                                        defaultValues.put(method, new ConstantExpression(v))
+                                    }
+                                } else {
+                                    defaultValues.put(method, (Expression)expression)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (!defaultValues.isEmpty()) {
+                defaults.put(annotationName, defaultValues)
+            }
+        }
+
+        return defaults.get(annotationName)
+    }
+
+    @Override
     protected Object readAnnotationValue(String memberName, Object annotationValue) {
         if (annotationValue instanceof ConstantExpression) {
             if (annotationValue instanceof AnnotationConstantExpression) {
@@ -133,7 +207,7 @@ class GroovyAnnotationMetadataBuilder extends AbstractAnnotationMetadataBuilder<
             Class arrayType = Object.class
             for (exp in le.expressions) {
                 if (exp instanceof AnnotationConstantExpression) {
-                    arrayType = AnnotationValue
+                    arrayType = io.micronaut.core.annotation.AnnotationValue
                     AnnotationConstantExpression ann = (AnnotationConstantExpression) exp
                     AnnotationNode value = (AnnotationNode) ann.getValue()
                     converted.add(readNestedAnnotationValue(value))
@@ -170,14 +244,16 @@ class GroovyAnnotationMetadataBuilder extends AbstractAnnotationMetadataBuilder<
 
     @Override
     protected OptionalValues<?> getAnnotationValues(AnnotatedNode member, Class<?> annotationType) {
-        def anns = member.getAnnotations(ClassHelper.make(annotationType))
-        if (!anns.isEmpty()) {
-            AnnotationNode ann = anns[0]
-            Map<CharSequence, Object> converted = new LinkedHashMap<>();
-            for (annMember in ann.members) {
-                readAnnotationRawValues(annMember.key, annMember.value, converted)
+        if (member != null) {
+            def anns = member.getAnnotations(ClassHelper.make(annotationType))
+            if (!anns.isEmpty()) {
+                AnnotationNode ann = anns[0]
+                Map<CharSequence, Object> converted = new LinkedHashMap<>();
+                for (annMember in ann.members) {
+                    readAnnotationRawValues(annMember.key, annMember.value, converted)
+                }
+                return OptionalValues.of(Object.class, converted)
             }
-            return OptionalValues.of(Object.class, converted)
         }
         return OptionalValues.empty()
     }

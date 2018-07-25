@@ -16,7 +16,7 @@
 
 package io.micronaut.http.server.binding.binders;
 
-import io.micronaut.context.annotation.Parameter;
+import io.micronaut.core.annotation.AnnotationMetadata;
 import io.micronaut.core.bind.annotation.AbstractAnnotatedArgumentBinder;
 import io.micronaut.core.convert.ArgumentConversionContext;
 import io.micronaut.core.convert.ConversionService;
@@ -60,23 +60,9 @@ public class ParameterAnnotationBinder<T> extends AbstractAnnotatedArgumentBinde
         HttpMethod httpMethod = source.getMethod();
         boolean permitsRequestBody = HttpMethod.permitsRequestBody(httpMethod);
 
-        QueryValue annotation = argument.getAnnotation(QueryValue.class);
-        boolean hasAnnotation = annotation != null;
-        String parameterName = argument.getName();
-        if (hasAnnotation) {
-            String value = annotation.value();
-            if (StringUtils.isNotEmpty(value)) {
-                parameterName = value;
-            }
-        } else {
-            Parameter p = argument.getAnnotation(Parameter.class);
-            if (p != null) {
-                String value = p.value();
-                if (StringUtils.isNotEmpty(value)) {
-                    parameterName = value;
-                }
-            }
-        }
+        AnnotationMetadata annotationMetadata = argument.getAnnotationMetadata();
+        boolean hasAnnotation = annotationMetadata.hasAnnotation(QueryValue.class);
+        String parameterName = annotationMetadata.getValue(QueryValue.class, String.class).orElse(argument.getName());
 
         BindingResult<T> result;
         // if the annotation is present or the HTTP method doesn't allow a request body
@@ -101,10 +87,17 @@ public class ParameterAnnotationBinder<T> extends AbstractAnnotatedArgumentBinde
             if (body.isPresent()) {
                 result = doBind(context, body.get(), parameterName);
                 if (!result.getValue().isPresent()) {
-                    if (ClassUtils.isJavaLangType(argument.getType())) {
+                    Class argumentType;
+                    if (argument.getType() == Optional.class) {
+                        argumentType = argument.getFirstTypeVariable().orElse(argument).getType();
+                    } else {
+                        argumentType = argument.getType();
+                    }
+                    if (ClassUtils.isJavaLangType(argumentType)) {
                         return Optional::empty;
                     } else {
-                        return () -> source.getBody(argument.getType());
+                        //noinspection unchecked
+                        return () -> source.getBody(argumentType);
                     }
                 }
             } else {

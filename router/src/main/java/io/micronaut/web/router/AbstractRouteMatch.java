@@ -85,16 +85,11 @@ abstract class AbstractRouteMatch<R> implements MethodBasedRouteMatch<R> {
     }
 
     private String resolveInputName(Argument requiredArgument) {
-        Optional<Annotation> ann = requiredArgument.findAnnotationWithStereoType(Bindable.class);
-        return ann.map(annotation -> {
-            Optional<String> value = AnnotationUtil.findValueOfType(annotation, String.class);
-            return value.map(s -> {
-                if (StringUtils.isEmpty(s)) {
-                    return requiredArgument.getName();
-                }
-                return s;
-            }).orElse(requiredArgument.getName());
-        }).orElse(requiredArgument.getName());
+        String inputName = requiredArgument.getAnnotationMetadata().getValue(Bindable.class, String.class).orElse(null);
+        if (StringUtils.isEmpty(inputName)) {
+            inputName = requiredArgument.getName();
+        }
+        return inputName;
     }
 
     @Override
@@ -120,7 +115,7 @@ abstract class AbstractRouteMatch<R> implements MethodBasedRouteMatch<R> {
             return Optional.ofNullable(requiredInputs.get(bodyArgument));
         } else {
             for (Argument argument : getArguments()) {
-                if (argument.getAnnotation(Body.class) != null) {
+                if (argument.getAnnotationMetadata().hasAnnotation(Body.class)) {
                     return Optional.of(argument);
                 }
             }
@@ -261,7 +256,7 @@ abstract class AbstractRouteMatch<R> implements MethodBasedRouteMatch<R> {
                             argumentList.add(resolveValueOrError(argument, conversionContext, result));
                         }
                     } else {
-                        if (argument.getDeclaredAnnotation(Nullable.class) != null) {
+                        if (argument.isDeclaredAnnotationPresent(Nullable.class)) {
                             argumentList.add(null);
                             continue;
                         } else {
@@ -335,7 +330,7 @@ abstract class AbstractRouteMatch<R> implements MethodBasedRouteMatch<R> {
     protected Object resolveValueOrError(Argument argument, ConversionContext conversionContext, Optional<?> result) {
         if (!result.isPresent()) {
             Optional<ConversionError> lastError = conversionContext.getLastError();
-            if (!lastError.isPresent() && argument.getDeclaredAnnotation(Nullable.class) != null) {
+            if (!lastError.isPresent() && argument.isDeclaredAnnotationPresent(Nullable.class)) {
                 return null;
             }
             throw lastError.map(conversionError ->
