@@ -1,15 +1,24 @@
 package io.micronaut.configuration.openapi.swagger;
 
+import io.micronaut.core.util.StringUtils;
 import io.micronaut.http.annotation.Consumes;
 import io.micronaut.http.annotation.Controller;
 import io.micronaut.http.annotation.HttpMethodMapping;
 import io.micronaut.http.annotation.Produces;
 import io.micronaut.inject.visitor.*;
+import io.swagger.v3.core.converter.AnnotatedType;
+import io.swagger.v3.core.converter.ModelConverters;
+import io.swagger.v3.core.converter.ResolvedSchema;
 import io.swagger.v3.core.util.AnnotationsUtils;
+import io.swagger.v3.core.util.ReflectionUtils;
 import io.swagger.v3.core.util.Yaml;
-import io.swagger.v3.oas.annotations.ExternalDocumentation;
-import io.swagger.v3.oas.annotations.OpenAPIDefinition;
-import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.jaxrs2.OperationParser;
+import io.swagger.v3.oas.annotations.*;
+import io.swagger.v3.oas.annotations.callbacks.Callback;
+import io.swagger.v3.oas.annotations.callbacks.Callbacks;
+import io.swagger.v3.oas.annotations.parameters.RequestBody;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.security.SecurityRequirements;
 import io.swagger.v3.oas.annotations.security.SecurityScheme;
@@ -20,9 +29,14 @@ import io.swagger.v3.oas.annotations.tags.Tags;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.OpenAPI;
-import org.apache.commons.lang3.StringUtils;
+import io.swagger.v3.oas.models.media.Content;
+import io.swagger.v3.oas.models.media.MediaType;
+import io.swagger.v3.oas.models.media.Schema;
 
 import java.io.Writer;
+import java.lang.annotation.Annotation;
+import java.lang.reflect.Array;
+import java.lang.reflect.Type;
 import java.util.*;
 
 public class SwaggerOpenAPIVisitor implements TypeElementVisitor<Object, Object> {
@@ -87,6 +101,19 @@ public class SwaggerOpenAPIVisitor implements TypeElementVisitor<Object, Object>
 
     }
 
+    <T extends Annotation> T[] getRepeatableAnnotations(Element element, Class<? extends Annotation> repeatType, Class<T> singleType) {
+        @SuppressWarnings("unchecked")
+        T[] singleTypeArray = (T[])Array.newInstance(singleType, 0);
+        if (element.hasDeclaredAnnotation(repeatType)) {
+            return element.getValue(repeatType, "value", (Class<T[]>)singleTypeArray.getClass()).orElse(singleTypeArray);
+        }
+        if (element.hasDeclaredAnnotation(singleType)) {
+            T[] array = (T[])Array.newInstance(singleType, 1);
+            array[0] = element.getDeclaredAnnotation(singleType);
+            return array;
+        }
+    }
+
     @Override
     public void visitMethod(MethodElement element, VisitorContext context) {
         if (element.isConstructor()) {
@@ -96,11 +123,209 @@ public class SwaggerOpenAPIVisitor implements TypeElementVisitor<Object, Object>
         if (element.hasStereotype(HttpMethodMapping.class)) {
             element.getValue(HttpMethodMapping.class, String.class).ifPresent(path -> {
 
+                io.swagger.v3.oas.models.Operation operation = new io.swagger.v3.oas.models.Operation();
+
+                path = StringUtils.prependUri(operationClassData.path, path);
+
                 String[] consumes = element.getValue(Consumes.class, String[].class).orElse(operationClassData.consumes);
                 String[] produces = element.getValue(Produces.class, String[].class).orElse(operationClassData.produces);
 
-                if (element.hasDeclaredAnnotation(Operation.class)) {
+                Operation apiOperation = element.getDeclaredAnnotation(Operation.class);
+                SecurityRequirement[] apiSecurity = getRepeatableAnnotations(element, SecurityRequirements.class, SecurityRequirement.class);
+                Callback[] apiCallbacks = getRepeatableAnnotations(element, Callbacks.class, Callback.class);
+                Server[] apiServers = getRepeatableAnnotations(element, Servers.class, Server.class);
+                Tag[] apiTags = getRepeatableAnnotations(element, Tags.class, Tag.class);
+                Parameter[] apiParameters = getRepeatableAnnotations(element, Parameters.class, Parameter.class);
+                ApiResponse[] apiResponses = getRepeatableAnnotations(element, ApiResponses.class, ApiResponse.class);
+                RequestBody apiRequestBody = element.getDeclaredAnnotation(RequestBody.class);
+                ExternalDocumentation apiExternalDocumentation = element.getDeclaredAnnotation(ExternalDocumentation.class);
+
+
+                // callbacks
+                Map<String, io.swagger.v3.oas.models.callbacks.Callback> callbacks = new LinkedHashMap<>();
+
+                if (apiCallbacks != null) {
+                    for (Callback methodCallback : apiCallbacks) {
+                        Map<String, Callback> currentCallbacks = getCallbacks(methodCallback, methodProduces, classProduces, methodConsumes, classConsumes, jsonViewAnnotation);
+                        callbacks.putAll(currentCallbacks);
+                    }
                 }
+                if (callbacks.size() > 0) {
+                    operation.setCallbacks(callbacks);
+                }
+
+                // security
+                operationClassData.securityRequirements.forEach(operation::addSecurityItem);
+                if (apiSecurity != null) {
+                    Optional<List<io.swagger.v3.oas.models.security.SecurityRequirement>> requirementsObject = io.swagger.v3.jaxrs2.SecurityParser.getSecurityRequirements(apiSecurity);
+                    if (requirementsObject.isPresent()) {
+                        requirementsObject.get().stream()
+                                .filter(r -> operation.getSecurity() == null || !operation.getSecurity().contains(r))
+                                .forEach(operation::addSecurityItem);
+                    }
+                }
+
+                operationClassData.servers.forEach(operation::addServersItem);
+
+                if (apiServers != null) {
+                    AnnotationsUtils.getServers(apiServers).ifPresent(servers -> servers.forEach(operation::addServersItem));
+                }
+
+                // external docs
+                AnnotationsUtils.getExternalDocumentation(apiExternalDocumentation).ifPresent(operation::setExternalDocs);
+
+                // method tags
+                if (apiTags != null) {
+                    Arrays.stream(apiTags)
+                            .filter(t -> operation.getTags() == null || (operation.getTags() != null && !operation.getTags().contains(t.name())))
+                            .map(t -> t.name())
+                            .forEach(operation::addTagsItem);
+                    AnnotationsUtils.getTags(apiTags, true).ifPresent(tags -> openApiTags.addAll(tags));
+                }
+
+                // parameters
+                if (globalParameters != null) {
+                    for (Parameter globalParameter : globalParameters) {
+                        operation.addParametersItem(globalParameter);
+                    }
+                }
+                if (apiParameters != null) {
+                    getParametersListFromAnnotation(
+                            apiParameters.toArray(new io.swagger.v3.oas.annotations.Parameter[apiParameters.size()]),
+                            classConsumes,
+                            methodConsumes,
+                            operation,
+                            jsonViewAnnotation).ifPresent(p -> p.forEach(operation::addParametersItem));
+                }
+
+                // RequestBody in Method
+                if (apiRequestBody != null && operation.getRequestBody() == null){
+                    OperationParser.getRequestBody(apiRequestBody, classConsumes, methodConsumes, components, jsonViewAnnotation).ifPresent(
+                            operation::setRequestBody);
+                }
+
+                // operation id
+                if (StringUtils.isEmpty(operation.getOperationId())) {
+                    operation.setOperationId(getOperationId(method.getName()));
+                }
+
+                // classResponses
+                if (classResponses != null && classResponses.length > 0) {
+                    OperationParser.getApiResponses(
+                            classResponses,
+                            classProduces,
+                            methodProduces,
+                            components,
+                            jsonViewAnnotation
+                    ).ifPresent(responses -> {
+                        if (operation.getResponses() == null) {
+                            operation.setResponses(responses);
+                        } else {
+                            responses.forEach(operation.getResponses()::addApiResponse);
+                        }
+                    });
+                }
+
+                if (apiOperation != null) {
+                    setOperationObjectFromApiOperationAnnotation(operation, apiOperation, methodProduces, classProduces, methodConsumes, classConsumes, jsonViewAnnotation);
+                }
+
+                // apiResponses
+                if (apiResponses != null && apiResponses.size() > 0) {
+                    OperationParser.getApiResponses(
+                            apiResponses.toArray(new io.swagger.v3.oas.annotations.responses.ApiResponse[apiResponses.size()]),
+                            classProduces,
+                            methodProduces,
+                            components,
+                            jsonViewAnnotation
+                    ).ifPresent(responses -> {
+                        if (operation.getResponses() == null) {
+                            operation.setResponses(responses);
+                        } else {
+                            responses.forEach(operation.getResponses()::addApiResponse);
+                        }
+                    });
+                }
+
+                // class tags after tags defined as field of @Operation
+                if (classTags != null) {
+                    classTags.stream()
+                            .filter(t -> operation.getTags() == null || (operation.getTags() != null && !operation.getTags().contains(t)))
+                            .forEach(operation::addTagsItem);
+                }
+
+                // external docs of class if not defined in annotation of method or as field of Operation annotation
+                if (operation.getExternalDocs() == null) {
+                    classExternalDocs.ifPresent(operation::setExternalDocs);
+                }
+
+                // if subresource, merge parent requestBody
+                if (isSubresource && parentRequestBody != null) {
+                    if (operation.getRequestBody() == null) {
+                        operation.requestBody(parentRequestBody);
+                    } else {
+                        Content content = operation.getRequestBody().getContent();
+                        if (content == null) {
+                            content = parentRequestBody.getContent();
+                            operation.getRequestBody().setContent(content);
+                        } else if (parentRequestBody.getContent() != null){
+                            for (String parentMediaType: parentRequestBody.getContent().keySet()) {
+                                if (content.get(parentMediaType) == null) {
+                                    content.addMediaType(parentMediaType, parentRequestBody.getContent().get(parentMediaType));
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // handle return type, add as response in case.
+                Type returnType = method.getGenericReturnType();
+                final Class<?> subResource = getSubResourceWithJaxRsSubresourceLocatorSpecs(method);
+                if (!shouldIgnoreClass(returnType.getTypeName()) && !returnType.equals(subResource)) {
+                    ResolvedSchema resolvedSchema = ModelConverters.getInstance().resolveAsResolvedSchema(new AnnotatedType(returnType).resolveAsRef(true).jsonViewAnnotation(jsonViewAnnotation));
+                    if (resolvedSchema.schema != null) {
+                        Schema returnTypeSchema = resolvedSchema.schema;
+                        Content content = new Content();
+                        MediaType mediaType = new MediaType().schema(returnTypeSchema);
+                        AnnotationsUtils.applyTypes(classProduces == null ? new String[0] : classProduces.value(),
+                                methodProduces == null ? new String[0] : methodProduces.value(), content, mediaType);
+                        if (operation.getResponses() == null) {
+                            operation.responses(
+                                    new ApiResponses()._default(
+                                            new ApiResponse().description(DEFAULT_DESCRIPTION)
+                                                    .content(content)
+                                    )
+                            );
+                        }
+                        if (operation.getResponses().getDefault() != null &&
+                                StringUtils.isBlank(operation.getResponses().getDefault().get$ref())) {
+                            if (operation.getResponses().getDefault().getContent() == null) {
+                                operation.getResponses().getDefault().content(content);
+                            } else {
+                                for (String key : operation.getResponses().getDefault().getContent().keySet()) {
+                                    if (operation.getResponses().getDefault().getContent().get(key).getSchema() == null) {
+                                        operation.getResponses().getDefault().getContent().get(key).setSchema(returnTypeSchema);
+                                    }
+                                }
+                            }
+                        }
+                        Map<String, Schema> schemaMap = resolvedSchema.referencedSchemas;
+                        if (schemaMap != null) {
+                            schemaMap.forEach((key, schema) -> components.addSchemas(key, schema));
+                        }
+
+                    }
+                }
+                if (operation.getResponses() == null || operation.getResponses().isEmpty()) {
+                    Content content = new Content();
+                    MediaType mediaType = new MediaType();
+                    AnnotationsUtils.applyTypes(classProduces == null ? new String[0] : classProduces.value(),
+                            methodProduces == null ? new String[0] : methodProduces.value(), content, mediaType);
+
+                    ApiResponse apiResponseObject = new ApiResponse().description(DEFAULT_DESCRIPTION).content(content);
+                    operation.setResponses(new ApiResponses()._default(apiResponseObject));
+                }
+
 
             });
         }
