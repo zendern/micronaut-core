@@ -1,6 +1,20 @@
+/*
+ * Copyright 2017-2018 original authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.micronaut.http.server.netty.binding
 
-import io.micronaut.context.annotation.Parameter
 import io.micronaut.http.HttpMethod
 import io.micronaut.http.HttpParameters
 import io.micronaut.http.HttpRequest
@@ -22,7 +36,7 @@ class ParameterBindingSpec extends AbstractMicronautSpec {
 
 
     @Unroll
-    void "test bind HTTP parameters for URI #uri"() {
+    void "test bind HTTP parameters for URI #httpMethod #uri"() {
 
         given:
         def req = httpMethod == HttpMethod.GET ? HttpRequest.GET(uri) : HttpRequest.POST(uri, '{}')
@@ -42,30 +56,33 @@ class ParameterBindingSpec extends AbstractMicronautSpec {
 
         where:
         httpMethod      | uri                                             | result                      | httpStatus
+        // you can't populate post request data from query parameters without explicit @QueryValue
+        HttpMethod.POST | '/parameter/save?max=30'                        | null                        | HttpStatus.BAD_REQUEST
         HttpMethod.GET  | '/parameter/path/20/foo/10'                     | "Parameter Values: 20 10"    | HttpStatus.OK
         HttpMethod.GET  | '/parameter/path/20/bar/10'                     | "Parameter Values: 20 10"    | HttpStatus.OK
         HttpMethod.GET  | '/parameter/path/20/bar'                        | "Parameter Values: 20 "      | HttpStatus.OK
         HttpMethod.GET  | '/parameter/named?maximum=20'                   | "Parameter Value: 20"       | HttpStatus.OK
-        HttpMethod.POST | '/parameter/saveAgain?max=30'                   | "Parameter Value: 30"       | HttpStatus.OK
+        HttpMethod.POST | '/parameter/save-again?max=30'                   | "Parameter Value: 30"       | HttpStatus.OK
         HttpMethod.GET  | '/parameter/path/20'                            | "Parameter Value: 20"       | HttpStatus.OK
         HttpMethod.GET  | '/parameter/simple'                             | null                        | HttpStatus.BAD_REQUEST
         HttpMethod.GET  | '/parameter/named'                              | null                        | HttpStatus.BAD_REQUEST
-        // you can't populate post request data from query parameters without explicit @QueryValue
-        HttpMethod.POST | '/parameter/save?max=30'                        | null                        | HttpStatus.BAD_REQUEST
-
         HttpMethod.GET  | '/parameter/overlap/30'                         | "Parameter Value: 30"       | HttpStatus.OK
         HttpMethod.GET  | '/parameter/overlap/30?max=50'                  | "Parameter Value: 30"       | HttpStatus.OK
         HttpMethod.GET  | '/parameter/map?values.max=20&values.offset=30' | "Parameter Value: 20 30"    | HttpStatus.OK
         HttpMethod.GET  | '/parameter/optional?max=20'                    | "Parameter Value: 20"       | HttpStatus.OK
         HttpMethod.GET  | '/parameter/list?values=10,20'                  | "Parameter Value: [10, 20]" | HttpStatus.OK
         HttpMethod.GET  | '/parameter/list?values=10&values=20'           | "Parameter Value: [10, 20]" | HttpStatus.OK
-        HttpMethod.GET  | '/parameter/optionalList?values=10&values=20'   | "Parameter Value: [10, 20]" | HttpStatus.OK
+        HttpMethod.GET  | '/parameter/optional-list?values=10&values=20'   | "Parameter Value: [10, 20]" | HttpStatus.OK
         HttpMethod.GET  | '/parameter?max=20'                             | "Parameter Value: 20"       | HttpStatus.OK
         HttpMethod.GET  | '/parameter/simple?max=20'                      | "Parameter Value: 20"       | HttpStatus.OK
 
         HttpMethod.GET  | '/parameter/optional'                           | "Parameter Value: 10"       | HttpStatus.OK
         HttpMethod.GET  | '/parameter/all'                                | "Parameter Value: 10"       | HttpStatus.OK
         HttpMethod.GET  | '/parameter/all?max=20'                         | "Parameter Value: 20"       | HttpStatus.OK
+
+        HttpMethod.GET  | '/parameter/query?name=Fr%20ed'                 | "Parameter Value: Fr ed"    | HttpStatus.OK
+        HttpMethod.GET  | '/parameter/queryName/Fr%20ed'                  | "Parameter Value: Fr ed"    | HttpStatus.OK
+        HttpMethod.POST | '/parameter/query?name=Fr%20ed'                 | "Parameter Value: Fr ed"    | HttpStatus.OK
 
     }
 
@@ -97,17 +114,17 @@ class ParameterBindingSpec extends AbstractMicronautSpec {
         }
 
         @Get('/path/{max}')
-        String path(@Parameter("max") Integer maximum) {
+        String path(@QueryValue("max") Integer maximum) {
             "Parameter Value: $maximum"
         }
 
         @Get('/path/{id}/foo/{fooId}')
-        String path2(@Parameter("id") Long someId, Long fooId) {
+        String path2(@QueryValue("id") Long someId, Long fooId) {
             "Parameter Values: $someId $fooId"
         }
 
         @Get('/path/{id}/bar{/barId}')
-        String optionalPath(@Parameter("id") Long someId, @Nullable Long barId) {
+        String optionalPath(@QueryValue("id") Long someId, @Nullable Long barId) {
             "Parameter Values: $someId ${barId ?: ''}"
         }
 
@@ -146,6 +163,21 @@ class ParameterBindingSpec extends AbstractMicronautSpec {
             } else {
                 "Parameter Value: none"
             }
+        }
+
+        @Get('/query')
+        String query(String name) {
+            "Parameter Value: $name"
+        }
+
+        @Get('/queryName/{name}')
+        String queryName(String name) {
+            "Parameter Value: $name"
+        }
+
+        @Post('/query')
+        String queryPost(@QueryValue String name) {
+            "Parameter Value: $name"
         }
     }
 }

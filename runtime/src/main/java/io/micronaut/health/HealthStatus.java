@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 original authors
+ * Copyright 2017-2018 original authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,14 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.micronaut.health;
+
+import com.fasterxml.jackson.annotation.JsonValue;
 
 import javax.annotation.concurrent.Immutable;
 import javax.validation.constraints.NotNull;
 import java.util.Optional;
 
 /**
- * <p>The status of a health indicator</p>
+ * <p>The status of a health indicator.</p>
  *
  * @author James Kleeh
  * @author Graeme Rocher
@@ -29,31 +32,47 @@ import java.util.Optional;
 @Immutable
 public class HealthStatus implements Comparable<HealthStatus> {
 
+    /**
+     * The default name to use for an {@link #UP} status.
+     */
+    public static final String NAME_UP = "UP";
+
+    /**
+     * The default name to use for an {@link #DOWN} status.
+     */
+    public static final String NAME_DOWN = "DOWN";
+
+    /**
+     * Indicates the service is operational.
+     */
+    public static final HealthStatus UP = new HealthStatus(NAME_UP, null, true, null);
+
+    /**
+     * Indicates the service is down and unavailable.
+     */
+    public static final HealthStatus DOWN = new HealthStatus(NAME_DOWN, null, false, 1000);
+
+    /**
+     * Indicates the service status is unknown.
+     */
+    public static final HealthStatus UNKNOWN = new HealthStatus("UNKNOWN");
+
     private final String name;
     private final String description;
     private final Boolean operational;
     private final Integer severity;
 
     /**
-     * The default name to use for an {@link #UP} status
+     * @param name        The name of the status
+     * @param description The detailed information about the status
+     * @param operational If it's operational
+     * @param severity    The severity, the higher the value, the more sever is situation.
      */
-    public static final String NAME_UP = "UP";
-    /**
-     * The default name to use for an {@link #DOWN} status
-     */
-    public static final String NAME_DOWN = "DOWN";
-    /**
-     * Indicates the service is operational
-     */
-    public static final HealthStatus UP = new HealthStatus(NAME_UP, null, true, null);
-    /**
-     * Indicates the service is down and unavailable
-     */
-    public static final HealthStatus DOWN = new HealthStatus(NAME_DOWN, null, false, 1000);
-
-    public static final HealthStatus UNKNOWN = new HealthStatus("UNKNOWN");
-
-    public HealthStatus(@NotNull String name, String description, Boolean operational, Integer severity) {
+    public HealthStatus(
+            String name,
+            String description,
+            Boolean operational,
+            Integer severity) {
         if (name == null) {
             throw new IllegalArgumentException("Name cannot be null when creating a health status");
         }
@@ -63,13 +82,16 @@ public class HealthStatus implements Comparable<HealthStatus> {
         this.severity = severity;
     }
 
+    /**
+     * @param name The name of the status
+     */
     public HealthStatus(@NotNull String name) {
         this(name, null, null, null);
     }
 
-
     /**
-     * Describe an existing {@link HealthStatus}
+     * Describe an existing {@link HealthStatus}.
+     *
      * @param description The description
      * @return The new health status
      */
@@ -92,7 +114,7 @@ public class HealthStatus implements Comparable<HealthStatus> {
     }
 
     /**
-     * Whether the status represents a functioning service
+     * Whether the status represents a functioning service.
      *
      * @return Empty if partially operational.
      */
@@ -112,11 +134,13 @@ public class HealthStatus implements Comparable<HealthStatus> {
 
     @Override
     public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
         HealthStatus that = (HealthStatus) o;
-
         return name.equals(that.name);
     }
 
@@ -128,7 +152,7 @@ public class HealthStatus implements Comparable<HealthStatus> {
     /**
      * Sorts statuses in order of "functioning level". The most functional
      * will appear first and the least functional will appear last.
-     *
+     * <p>
      * Operation is sorted (true, null, false). For statuses with matching
      * operations, severity is sorted ascending, with nulls first.
      *
@@ -157,12 +181,8 @@ public class HealthStatus implements Comparable<HealthStatus> {
     }
 
     @Override
+    @JsonValue
     public String toString() {
-        return "HealthStatus{" +
-                "name='" + name + '\'' +
-                ", description=" + description +
-                ", operational=" + operational +
-                ", severity=" + severity +
-                '}';
+        return name;
     }
 }

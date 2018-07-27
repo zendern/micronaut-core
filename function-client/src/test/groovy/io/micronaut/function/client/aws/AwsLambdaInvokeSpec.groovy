@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 original authors
+ * Copyright 2017-2018 original authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,13 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.micronaut.function.client.aws
 
-import io.micronaut.context.ApplicationContext
-import io.micronaut.core.type.Argument
-import io.micronaut.function.client.FunctionClient
-import io.micronaut.function.client.FunctionDefinition
-import io.micronaut.http.annotation.Body
 import io.reactivex.Single
 import io.micronaut.context.ApplicationContext
 import io.micronaut.core.type.Argument
@@ -28,6 +24,7 @@ import io.micronaut.function.client.FunctionDefinition
 import io.micronaut.function.client.FunctionInvoker
 import io.micronaut.function.client.FunctionInvokerChooser
 import io.micronaut.http.annotation.Body
+import spock.lang.Ignore
 import spock.lang.IgnoreIf
 import spock.lang.Specification
 
@@ -40,13 +37,14 @@ import javax.inject.Named
 @IgnoreIf({
     return !new File("${System.getProperty("user.home")}/.aws/credentials").exists()
 })
+//@Ignore
 class AwsLambdaInvokeSpec extends Specification {
 
 
     void "test setup function definitions"() {
         given:
         ApplicationContext applicationContext = ApplicationContext.run(
-                'aws.lambda.functions.test.functionName':'particle-function',
+                'aws.lambda.functions.test.functionName':'micronaut-function',
                 'aws.lambda.functions.test.qualifier':'something'
         )
         
@@ -55,7 +53,7 @@ class AwsLambdaInvokeSpec extends Specification {
         expect:
         definitions.size() == 1
         definitions.first() instanceof AWSInvokeRequestDefinition
-        definitions.first().invokeRequest.functionName == 'particle-function'
+        definitions.first().invokeRequest.functionName == 'micronaut-function'
         definitions.first().invokeRequest.qualifier == 'something'
 
     }
@@ -63,7 +61,7 @@ class AwsLambdaInvokeSpec extends Specification {
     void "test setup lambda config"() {
         given:
         ApplicationContext applicationContext = ApplicationContext.run(
-                'aws.lambda.functions.test.functionName':'particle-function',
+                'aws.lambda.functions.test.functionName':'micronaut-function',
                 'aws.lambda.functions.test.qualifier':'something',
                 'aws.lambda.region':'us-east-1'
         )
@@ -73,10 +71,11 @@ class AwsLambdaInvokeSpec extends Specification {
         configuration.builder.region == 'us-east-1'
     }
 
+    @Ignore
     void "test invoke function"() {
         given:
         ApplicationContext applicationContext = ApplicationContext.run(
-                'aws.lambda.functions.test.functionName':'particle-function',
+                'aws.lambda.functions.test.functionName':'micronaut-function',
                 'aws.lambda.region':'us-east-1'
         )
 
@@ -98,17 +97,17 @@ class AwsLambdaInvokeSpec extends Specification {
         book.title == "THE STAND"
     }
 
-
+    @Ignore
     void "test invoke client with @FunctionClient"() {
         given:
         ApplicationContext applicationContext = ApplicationContext.run(
-                'aws.lambda.functions.test.functionName':'particle-function',
+                'aws.lambda.functions.test.functionName':'micronaut-function',
                 'aws.lambda.region':'us-east-1'
         )
 
         when:
         MyClient myClient = applicationContext.getBean(MyClient)
-        Book book = myClient.particleFunction( new Book(title: "The Stand") )
+        Book book = myClient.micronautFunction( new Book(title: "The Stand") )
 
         then:
         book != null
@@ -133,14 +132,17 @@ class AwsLambdaInvokeSpec extends Specification {
         String title
     }
 
+    //tag::functionClient[]
     @FunctionClient
     static interface MyClient {
-        Book particleFunction(@Body Book book)
 
-        @Named('particle-function')
+        Book micronautFunction(@Body Book book)
+
+        @Named('micronaut-function')
         Book someOtherName(String title)
 
-        @Named('particle-function')
+        @Named('micronaut-function')
         Single<Book> reactiveInvoke(String title)
     }
+    //end::functionClient[]
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 original authors
+ * Copyright 2017-2018 original authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,48 +13,50 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.micronaut.inject.writer;
 
 import io.micronaut.context.AbstractBeanDefinitionReference;
-import org.objectweb.asm.ClassWriter;
-import org.objectweb.asm.MethodVisitor;
-import org.objectweb.asm.Type;
-import org.objectweb.asm.commons.GeneratorAdapter;
-import io.micronaut.context.AbstractBeanDefinitionReference;
 import io.micronaut.core.annotation.AnnotationMetadata;
 import io.micronaut.core.annotation.Internal;
-import io.micronaut.core.io.service.ServiceDescriptorGenerator;
 import io.micronaut.inject.BeanDefinition;
 import io.micronaut.inject.BeanDefinitionReference;
+import org.objectweb.asm.ClassWriter;
+import org.objectweb.asm.Type;
+import org.objectweb.asm.commons.GeneratorAdapter;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.util.Optional;
 
 /**
- * Writes the bean definition class file to disk
+ * Writes the bean definition class file to disk.
  *
- * @see BeanDefinitionReference
  * @author Graeme Rocher
+ * @see BeanDefinitionReference
  * @since 1.0
  */
 @Internal
 public class BeanDefinitionReferenceWriter extends AbstractAnnotationMetadataWriter {
 
+    /**
+     * Suffix for reference classes.
+     */
     public static final String REF_SUFFIX = "Class";
 
     private final String beanTypeName;
     private final String beanDefinitionName;
     private final String beanDefinitionClassInternalName;
     private final String beanDefinitionReferenceClassName;
-    private String replaceBeanName;
     private boolean contextScope = false;
-    private String replaceBeanDefinitionName;
     private boolean requiresMethodProcessing;
 
+    /**
+     * @param beanTypeName       The bean type name
+     * @param beanDefinitionName The bean definition name
+     * @param annotationMetadata The annotation metadata
+     */
     public BeanDefinitionReferenceWriter(String beanTypeName, String beanDefinitionName, AnnotationMetadata annotationMetadata) {
-        super(beanDefinitionName  + REF_SUFFIX, annotationMetadata);
+        super(beanDefinitionName + REF_SUFFIX, annotationMetadata);
         this.beanTypeName = beanTypeName;
         this.beanDefinitionName = beanDefinitionName;
         this.beanDefinitionReferenceClassName = beanDefinitionName + REF_SUFFIX;
@@ -62,28 +64,28 @@ public class BeanDefinitionReferenceWriter extends AbstractAnnotationMetadataWri
     }
 
     /**
-     * Accept an {@link ClassWriterOutputVisitor} to write all generated classes
+     * Accept an {@link ClassWriterOutputVisitor} to write all generated classes.
      *
      * @param outputVisitor The {@link ClassWriterOutputVisitor}
      * @throws IOException If an error occurs
      */
     @Override
     public void accept(ClassWriterOutputVisitor outputVisitor) throws IOException {
-        if(annotationMetadataWriter != null) {
+        if (annotationMetadataWriter != null) {
             annotationMetadataWriter.accept(outputVisitor);
         }
-        try(OutputStream outputStream = outputVisitor.visitClass(getBeanDefinitionQualifiedClassName())) {
+        try (OutputStream outputStream = outputVisitor.visitClass(getBeanDefinitionQualifiedClassName())) {
             ClassWriter classWriter = generateClassBytes();
             outputStream.write(classWriter.toByteArray());
         }
-        Optional<File> file = outputVisitor.visitServiceDescriptor(BeanDefinitionReference.class);
-        if(file.isPresent()) {
-            ServiceDescriptorGenerator.generate(beanDefinitionReferenceClassName, file.get());
-        }
+        outputVisitor.visitServiceDescriptor(
+            BeanDefinitionReference.class,
+            beanDefinitionReferenceClassName
+        );
     }
 
     /**
-     * Set whether the bean should be in context scope
+     * Set whether the bean should be in context scope.
      *
      * @param contextScope The context scope
      */
@@ -92,29 +94,14 @@ public class BeanDefinitionReferenceWriter extends AbstractAnnotationMetadataWri
     }
 
     /**
-     * The name of the bean this bean replaces
-     * @param replaceBeanName The replace bean name
-     */
-    public void setReplaceBeanName(String replaceBeanName) {
-        this.replaceBeanName = replaceBeanName;
-    }
-
-    /**
-     * The name of the bean this bean replaces
-     * @param replaceBeanName The replace bean name
-     */
-    public void setReplaceBeanDefinitionName(String replaceBeanName) {
-        this.replaceBeanDefinitionName = replaceBeanName;
-    }
-
-    /**
-     * Sets whether the {@link BeanDefinition#requiresMethodProcessing()} returns true
+     * Sets whether the {@link BeanDefinition#requiresMethodProcessing()} returns true.
      *
      * @param shouldPreProcess True if they should be pre-processed
      */
     public void setRequiresMethodProcessing(boolean shouldPreProcess) {
         this.requiresMethodProcessing = shouldPreProcess;
     }
+
     /**
      * Obtains the class name of the bean definition to be written. Java Annotation Processors need
      * this information to create a JavaFileObject using a Filer.
@@ -123,8 +110,8 @@ public class BeanDefinitionReferenceWriter extends AbstractAnnotationMetadataWri
      */
     public String getBeanDefinitionQualifiedClassName() {
         String newClassName = beanDefinitionName;
-        if(newClassName.endsWith("[]")) {
-            newClassName = newClassName.substring(0, newClassName.length()-2);
+        if (newClassName.endsWith("[]")) {
+            newClassName = newClassName.substring(0, newClassName.length() - 2);
         }
         return newClassName + REF_SUFFIX;
     }
@@ -132,12 +119,10 @@ public class BeanDefinitionReferenceWriter extends AbstractAnnotationMetadataWri
     private ClassWriter generateClassBytes() {
         ClassWriter classWriter = new ClassWriter(ClassWriter.COMPUTE_MAXS);
 
-
         Type superType = Type.getType(AbstractBeanDefinitionReference.class);
         startClass(classWriter, beanDefinitionClassInternalName, superType);
-        Type beanType = getTypeReference(beanDefinitionName);
+        Type beanDefinitionType = getTypeReference(beanDefinitionName);
         writeAnnotationMetadataStaticInitializer(classWriter);
-
 
         GeneratorAdapter cv = startConstructor(classWriter);
 
@@ -150,7 +135,6 @@ public class BeanDefinitionReferenceWriter extends AbstractAnnotationMetadataWri
         // INVOKESPECIAL AbstractBeanDefinitionReference.<init> (Ljava/lang/String;)V
         invokeConstructor(cv, AbstractBeanDefinitionReference.class, String.class, String.class);
 
-
         // RETURN
         cv.visitInsn(RETURN);
         // MAXSTACK = 2
@@ -161,46 +145,46 @@ public class BeanDefinitionReferenceWriter extends AbstractAnnotationMetadataWri
         GeneratorAdapter loadMethod = startPublicMethodZeroArgs(classWriter, BeanDefinition.class, "load");
 
         // return new BeanDefinition()
-        loadMethod.newInstance(beanType);
+        loadMethod.newInstance(beanDefinitionType);
         loadMethod.dup();
-        loadMethod.invokeConstructor(beanType, METHOD_DEFAULT_CONSTRUCTOR);
+        loadMethod.invokeConstructor(beanDefinitionType, METHOD_DEFAULT_CONSTRUCTOR);
 
         // RETURN
         loadMethod.returnValue();
         loadMethod.visitMaxs(2, 1);
 
         // start method: boolean isContextScope()
-        if(contextScope) {
+        if (contextScope) {
             GeneratorAdapter isContextScopeMethod = startPublicMethodZeroArgs(classWriter, boolean.class, "isContextScope");
             isContextScopeMethod.push(true);
             isContextScopeMethod.returnValue();
             isContextScopeMethod.visitMaxs(1, 1);
-
         }
 
+        // start method: Class getBeanDefinitionType()
+        GeneratorAdapter getBeanDefinitionType = startPublicMethodZeroArgs(classWriter, Class.class, "getBeanDefinitionType");
+        getBeanDefinitionType.push(beanDefinitionType);
+        getBeanDefinitionType.returnValue();
+        getBeanDefinitionType.visitMaxs(2, 1);
+
+        // start method: Class getBeanType()
+        GeneratorAdapter getBeanType = startPublicMethodZeroArgs(classWriter, Class.class, "getBeanType");
+        getBeanType.push(getTypeReference(beanTypeName));
+        getBeanType.returnValue();
+        getBeanType.visitMaxs(2, 1);
+
         //noinspection Duplicates
-        if(requiresMethodProcessing) {
+        if (requiresMethodProcessing) {
             GeneratorAdapter requiresMethodProcessing = startPublicMethod(classWriter, "requiresMethodProcessing", boolean.class.getName());
             requiresMethodProcessing.push(true);
             requiresMethodProcessing.visitInsn(IRETURN);
-            requiresMethodProcessing.visitMaxs(1,1);
+            requiresMethodProcessing.visitMaxs(1, 1);
             requiresMethodProcessing.visitEnd();
         }
 
         writeGetAnnotationMetadataMethod(classWriter);
 
-        // start method: getReplacesBeanTypeName()
-        writeReplacementIfNecessary(classWriter, replaceBeanName, "getReplacesBeanTypeName");
-        writeReplacementIfNecessary(classWriter, replaceBeanDefinitionName, "getReplacesBeanDefinitionName");
         return classWriter;
     }
 
-    private void writeReplacementIfNecessary(ClassWriter classWriter, String replaceBeanName, String method) {
-        if(replaceBeanName != null) {
-            MethodVisitor getReplacesBeanTypeNameMethod = startPublicMethodZeroArgs(classWriter, String.class, method);
-            getReplacesBeanTypeNameMethod.visitLdcInsn(replaceBeanName);
-            getReplacesBeanTypeNameMethod.visitInsn(ARETURN);
-            getReplacesBeanTypeNameMethod.visitMaxs(1, 1);
-        }
-    }
 }

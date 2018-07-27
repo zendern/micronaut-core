@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 original authors
+ * Copyright 2017-2018 original authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,35 +17,22 @@ package io.micronaut.discovery.consul
 
 import io.micronaut.context.annotation.Requires
 import io.micronaut.core.async.publisher.Publishers
-import io.micronaut.discovery.consul.client.v1.CatalogEntry
-import io.micronaut.discovery.consul.client.v1.Check
-import io.micronaut.discovery.consul.client.v1.ConsulOperations
-import io.micronaut.discovery.consul.client.v1.HealthEntry
-import io.micronaut.discovery.consul.client.v1.MockCheckEntry
-import io.micronaut.discovery.consul.client.v1.MockHealthEntry
-import io.micronaut.discovery.consul.client.v1.NewServiceEntry
-import io.micronaut.discovery.consul.client.v1.ServiceEntry
+import io.micronaut.core.util.StringUtils
+import io.micronaut.discovery.consul.client.v1.*
 import io.micronaut.http.HttpStatus
 import io.micronaut.http.annotation.Body
 import io.micronaut.http.annotation.Controller
-import io.micronaut.context.annotation.Requires
-import io.micronaut.core.async.publisher.Publishers
-import io.micronaut.discovery.consul.client.v1.CatalogEntry
-import io.micronaut.discovery.consul.client.v1.Check
-import io.micronaut.discovery.consul.client.v1.ConsulOperations
-import io.micronaut.discovery.consul.client.v1.HealthEntry
-import io.micronaut.discovery.consul.client.v1.MockCheckEntry
-import io.micronaut.discovery.consul.client.v1.MockHealthEntry
-import io.micronaut.discovery.consul.client.v1.NewServiceEntry
-import io.micronaut.discovery.consul.client.v1.ServiceEntry
-import io.micronaut.http.HttpStatus
-import io.micronaut.http.annotation.*
+import io.micronaut.http.annotation.Get
+import io.micronaut.http.annotation.QueryValue
 import io.micronaut.runtime.server.EmbeddedServer
+import io.reactivex.Flowable
 import org.reactivestreams.Publisher
+import reactor.core.publisher.Mono
 
-import javax.inject.Singleton
+import javax.annotation.Nullable
 import javax.validation.constraints.NotNull
 import java.util.concurrent.ConcurrentHashMap
+import java.util.stream.Collectors
 
 /**
  * A simple server that mocks the Consul API
@@ -54,13 +41,15 @@ import java.util.concurrent.ConcurrentHashMap
  * @since 1.0
  */
 @Controller("/v1")
-@Singleton
 @Requires(property = MockConsulServer.ENABLED)
 class MockConsulServer implements ConsulOperations {
     public static final String ENABLED = 'enable.mock.consul'
 
     Map<String, ServiceEntry> services = new ConcurrentHashMap<>()
     Map<String, MockCheckEntry> checks = new ConcurrentHashMap<>()
+
+    Map<String, List<KeyValue>> keyvalues = new ConcurrentHashMap<>()
+
     final CatalogEntry nodeEntry
 
     static NewServiceEntry lastNewEntry
@@ -73,7 +62,53 @@ class MockConsulServer implements ConsulOperations {
     }
 
     @Override
-    Publisher<HttpStatus> pass(String checkId, Optional<String> note) {
+    Publisher<Boolean> putValue(String key, @Body String value) {
+        // make sure it isn't a folder
+        key = URLDecoder.decode(key, "UTF-8")
+        if(!key.endsWith("/") && StringUtils.hasText(value)) {
+            int i = key.lastIndexOf('/')
+            String folder = key
+            if(i > -1) {
+                folder = key.substring(0, i)
+            }
+            List<KeyValue> list = keyvalues.computeIfAbsent(folder, { String k -> []})
+            list.add(new KeyValue(key, Base64.getEncoder().encodeToString(value.bytes)))
+        }
+        return Flowable.just(true)
+    }
+
+    @Override
+    @Get("/kv/{+key}")
+    Mono<List<KeyValue>> readValues(String key) {
+        key = URLDecoder.decode(key, "UTF-8")
+        Map<String, List<KeyValue>> found = keyvalues.findAll { entry -> entry.key.startsWith(key)}
+        if(found) {
+            return Mono.just(found.values().stream().flatMap({ values -> values.stream() })
+                                   .collect(Collectors.toList()))
+        }
+        else {
+            int i = key.lastIndexOf('/')
+            if(i > -1) {
+                String prefix = key.substring(0,i)
+
+                List<KeyValue> values = keyvalues.get(prefix)
+                if(values) {
+                    return Mono.just(values.findAll({it.key.startsWith(key)}))
+                }
+            }
+        }
+        return Mono.just(Collections.emptyList())
+    }
+
+    @Override
+    Mono<List<KeyValue>> readValues(String key,
+                                    @Nullable @QueryValue("dc") String datacenter,
+                                    @Nullable Boolean raw, @Nullable String seperator) {
+        return readValues(key)
+    }
+
+    @Override
+    Publisher<HttpStatus> pass(String checkId, @Nullable String note) {
         passingReports.add(checkId)
         String service = nameFromCheck(checkId)
         checks.get(service)?.setStatus(Check.Status.PASSING.name().toLowerCase())
@@ -82,12 +117,12 @@ class MockConsulServer implements ConsulOperations {
     }
 
     @Override
-    Publisher<HttpStatus> warn(String checkId, Optional<String> note) {
+    Publisher<HttpStatus> warn(String checkId, @Nullable String  note) {
         return Publishers.just(HttpStatus.OK)
     }
 
     @Override
-    Publisher<HttpStatus> fail(String checkId, Optional<String> note) {
+    Publisher<HttpStatus> fail(String checkId, @Nullable String  note) {
         String service = nameFromCheck(checkId)
         checks.get(service)?.setStatus(Check.Status.CRITICAL.name().toLowerCase())
         return Publishers.just(HttpStatus.OK)

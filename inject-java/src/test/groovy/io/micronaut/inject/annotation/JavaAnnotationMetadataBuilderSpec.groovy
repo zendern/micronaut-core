@@ -1,34 +1,22 @@
 /*
- * Copyright 2017 original authors
- * 
+ * Copyright 2017-2018 original authors
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  * http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License. 
+ * limitations under the License.
  */
 package io.micronaut.inject.annotation
 
 import io.micronaut.aop.Around
 import io.micronaut.context.annotation.ConfigurationReader
-import io.micronaut.context.annotation.Context
-import io.micronaut.context.annotation.Infrastructure
-import io.micronaut.context.annotation.Primary
-import io.micronaut.context.annotation.Requirements
-import io.micronaut.context.annotation.Requires
-import io.micronaut.core.annotation.AnnotationMetadata
-import io.micronaut.inject.AbstractTypeElementSpec
-import io.micronaut.runtime.context.scope.Refreshable
-import io.micronaut.runtime.context.scope.ScopedProxy
-import io.micronaut.aop.Around
-import io.micronaut.context.annotation.ConfigurationReader
-import io.micronaut.context.annotation.Infrastructure
 import io.micronaut.context.annotation.Primary
 import io.micronaut.context.annotation.Requirements
 import io.micronaut.context.annotation.Requires
@@ -47,6 +35,22 @@ import javax.inject.Singleton
  */
 class JavaAnnotationMetadataBuilderSpec extends AbstractTypeElementSpec {
 
+    void "test find closest stereotype"() {
+        given:
+        AnnotationMetadata metadata = buildTypeAnnotationMetadata('''\
+package test;
+
+import io.micronaut.inject.annotation.*;
+@ScopeTwo
+class Test {
+}
+''')
+
+        expect:
+        metadata != null
+        metadata.getAnnotationNameByStereotype(Scope).get() == ScopeTwo.name
+    }
+
     void "test annotation names by stereotype"() {
         given:
         AnnotationMetadata metadata = buildTypeAnnotationMetadata('''\
@@ -62,6 +66,26 @@ class Test {
         metadata != null
         metadata.getAnnotationNamesByStereotype(Around).contains(Refreshable.name)
         metadata.getAnnotationNamesByStereotype(Around).contains(ScopedProxy.name)
+    }
+
+    void "test multiple alias definitions with value"() {
+        given:
+        AnnotationMetadata metadata = buildTypeAnnotationMetadata('''\
+package test;
+
+import io.micronaut.inject.annotation.*;
+
+@MultipleAlias("test")
+class Test {
+}
+''')
+        expect:
+        metadata != null
+        metadata.hasDeclaredStereotype(ConfigurationReader)
+        metadata.getValue(ConfigurationReader, String).get() == 'test'
+        metadata.hasDeclaredAnnotation(MultipleAlias)
+        metadata.getValue(MultipleAlias, String).get() == 'test'
+        metadata.getValue(MultipleAlias, "id", String).get() == 'test'
     }
 
     void "test alias for has correct value for aliased member"() {
@@ -154,9 +178,9 @@ class Test {
         metadata != null
         metadata.hasDeclaredAnnotation(Requirements)
         metadata.getValue(Requirements).get().size() == 2
-        metadata.getValue(Requirements).get()[0] instanceof AnnotationValue
+        metadata.getValue(Requirements).get()[0] instanceof io.micronaut.core.annotation.AnnotationValue
         metadata.getValue(Requirements).get()[0].values.get('property') == 'blah'
-        metadata.getValue(Requirements).get()[1] instanceof AnnotationValue
+        metadata.getValue(Requirements).get()[1] instanceof io.micronaut.core.annotation.AnnotationValue
         metadata.getValue(Requirements).get()[1].values.get('classes') == ['test.Test'] as Object[]
     }
 
@@ -205,26 +229,6 @@ interface A {
         metadata.hasStereotype(Singleton)
         metadata.hasStereotype(Scope)
         metadata.getAnnotationNameByStereotype(Singleton).get() == 'javax.inject.Singleton'
-    }
-
-    void "test parse inherited stereotype data"() {
-
-        given:
-        AnnotationMetadata metadata = buildTypeAnnotationMetadata('''\
-package test;
-
-@io.micronaut.context.annotation.Infrastructure
-class Test {
-}
-''')
-
-        expect:
-        metadata != null
-        metadata.hasAnnotation(Infrastructure)
-        metadata.hasDeclaredAnnotation(Infrastructure)
-        metadata.hasStereotype(Singleton)
-        metadata.hasStereotype(Scope)
-        metadata.hasStereotype(Context)
     }
 
     void "test parse inherited stereotype data attributes"() {
@@ -409,7 +413,7 @@ interface ITest {
         metadata.getValue(Around, 'lazy').isPresent()
         metadata.isTrue(Around, 'proxyTarget')
         metadata.isFalse(Around, 'lazy')
-        metadata.getAnnotationNamesByStereotype(Around.name) == [Trace.name, SomeOther.name] as Set
+        metadata.getAnnotationNamesByStereotype(Around.name) == [Trace.name, SomeOther.name]
     }
 
 
@@ -485,5 +489,22 @@ interface ITest {
         !metadata.hasStereotype(Singleton)
     }
 
+    void "test a circular annotation is read correctly"() {
+        given:
+        AnnotationMetadata metadata = buildMethodAnnotationMetadata('''\
+package test;
+
+class Test {
+
+    @io.micronaut.inject.annotation.Circular
+    void testMethod() {}
+}
+''', 'testMethod')
+
+
+        expect:
+        metadata != null
+        metadata.hasAnnotation(Circular)
+    }
 
 }

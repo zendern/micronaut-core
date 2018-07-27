@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 original authors
+ * Copyright 2017-2018 original authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,9 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.micronaut.management.health.indicator.diskspace;
 
-import io.micronaut.context.annotation.ConfigurationProperties;
 import io.micronaut.context.annotation.ConfigurationProperties;
 import io.micronaut.core.convert.format.ReadableBytes;
 import io.micronaut.core.util.Toggleable;
@@ -35,28 +35,46 @@ public class DiskSpaceIndicatorConfiguration implements Toggleable {
     private File path = new File(".");
     private long threshold = 1024 * 1024 * 10; // 10MB
 
+    /**
+     * @return Whether the health indicator is enabled
+     */
     @Override
     public boolean isEnabled() {
         return enabled;
     }
 
+    /**
+     * @param enabled Enable the health indication endpoint
+     */
+    protected void setEnabled(boolean enabled) {
+        this.enabled = enabled;
+    }
+
+    /**
+     * @return The file path to monitor for disk space
+     */
     public File getPath() {
         return path;
     }
 
+    /**
+     * @param path The file path
+     */
+    protected void setPath(File path) {
+        this.path = path;
+    }
+
+    /**
+     * @return The threshold
+     */
     public long getThreshold() {
         return threshold;
     }
 
-    void setEnabled(boolean enabled) {
-        this.enabled = enabled;
-    }
-
-    void setPath(File path) {
-        this.path = path;
-    }
-
-    void setThreshold(@ReadableBytes long threshold) {
+    /**
+     * @param threshold Set the threshold
+     */
+    protected void setThreshold(@ReadableBytes long threshold) {
         this.threshold = threshold;
     }
 }

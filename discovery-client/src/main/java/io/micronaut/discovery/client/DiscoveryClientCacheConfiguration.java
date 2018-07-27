@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 original authors
+ * Copyright 2017-2018 original authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,11 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.micronaut.discovery.client;
 
-import io.micronaut.context.annotation.ConfigurationProperties;
-import io.micronaut.context.annotation.Requires;
-import io.micronaut.core.util.Toggleable;
+import static io.micronaut.discovery.client.DiscoveryClientCacheConfiguration.CACHE_NAME;
+
 import io.micronaut.cache.CacheConfiguration;
 import io.micronaut.context.annotation.ConfigurationProperties;
 import io.micronaut.context.annotation.Requires;
@@ -25,13 +25,10 @@ import io.micronaut.core.util.Toggleable;
 import io.micronaut.runtime.ApplicationConfiguration;
 
 import javax.inject.Named;
-
 import java.time.Duration;
 
-import static io.micronaut.discovery.client.DiscoveryClientCacheConfiguration.CACHE_NAME;
-
 /**
- * A cache configuration for the Discovery client cache
+ * A cache configuration for the Discovery client cache.
  *
  * @author Graeme Rocher
  * @since 1.0
@@ -41,11 +38,22 @@ import static io.micronaut.discovery.client.DiscoveryClientCacheConfiguration.CA
 @Requires(property = DiscoveryClientCacheConfiguration.SETTING_ENABLED, notEquals = "false")
 public class DiscoveryClientCacheConfiguration extends CacheConfiguration implements Toggleable {
 
-    public static final String CACHE_NAME = "discoveryClient";
-    public static final String SETTING_ENABLED =  CacheConfiguration.PREFIX + ".discoveryClient.enabled";
+    /**
+     * The prefix to use for all discovery client settings.
+     */
+    public static final String CACHE_NAME = "discovery-client";
+
+    /**
+     * Configuration property name for enabled discovery cache client.
+     */
+    public static final String SETTING_ENABLED = CacheConfiguration.PREFIX + ".discovery-client.enabled";
 
     private boolean enabled = true;
 
+    /**
+     * @param applicationConfiguration The application configuration
+     */
+    @SuppressWarnings("MagicNumber")
     public DiscoveryClientCacheConfiguration(ApplicationConfiguration applicationConfiguration) {
         super(CACHE_NAME, applicationConfiguration);
         setExpireAfterAccess(Duration.ofSeconds(30));
@@ -53,11 +61,17 @@ public class DiscoveryClientCacheConfiguration extends CacheConfiguration implem
         setInitialCapacity(5);
     }
 
+    /**
+     * @return Whether the discovery client is enabled
+     */
     @Override
     public boolean isEnabled() {
         return enabled;
     }
 
+    /**
+     * @param enabled Enable or disable the discovery client
+     */
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
     }

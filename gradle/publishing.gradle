@@ -49,6 +49,8 @@ ext.pomInfo = {
     ext.extraPomInfo.call()
 }
 
+
+
 modifyPom {
     project(pomInfo)
 }
@@ -58,40 +60,100 @@ publishing {
     repositories {
         maven {
             credentials {
-                def u = System.getenv("ARTIFACTORY_USERNAME") ?: project.hasProperty("artifactoryPublishUsername") ? project.artifactoryPublishUsername : ''
-                def p = System.getenv("ARTIFACTORY_PASSWORD") ?: project.hasProperty("artifactoryPublishPassword") ? project.artifactoryPublishPassword : ''
-                username = u
-                password = p
+                def ossUser = System.getenv("SONATYPE_USERNAME") ?: project.hasProperty("sonatypeOssUsername") ? project.sonatypeOssUsername : ''
+                def ossPass = System.getenv("SONATYPE_PASSWORD") ?: project.hasProperty("sonatypeOssPassword") ? project.sonatypeOssPassword : ''
+
+                username = ossUser
+                password = ossPass
             }
             if(isBuildSnapshot) {
-                url  "https://repo.grails.org/grails/libs-snapshots-local"
+                url  "https://oss.sonatype.org/content/repositories/snapshots"
             }
             else {
-                url "https://repo.grails.org/grails/libs-releases-local"
+                url "https://repo.micronaut.io/artifactory/libs-releases-local"
             }
         }
     }
 
     publications {
-        maven(MavenPublication) {
+        maven(MavenPublication) { publication ->
             artifactId( project.name.substring(project.name.indexOf('/') + 1) )
-            def rejar = tasks.findByName("rejar")
-            if(rejar) {
-                artifact rejar
+            def shadowJar = tasks.findByName("shadowJar")
+            if(shadowJar) {
+                artifact(project.tasks.shadowJar) {
+                    classifier = null
+                }
+                pom.withXml { xml ->
+                    def xmlNode = xml.asNode()
+                    def dependenciesNode = xmlNode.appendNode('dependencies')
+
+                    project.configurations.shadow.allDependencies.each {
+                        if (! (it instanceof SelfResolvingDependency)) {
+                            def dependencyNode = dependenciesNode.appendNode('dependency')
+                            dependencyNode.appendNode('groupId', it.group)
+                            dependencyNode.appendNode('artifactId', it.name)
+                            dependencyNode.appendNode('version', it.version)
+                            dependencyNode.appendNode('scope', 'runtime')
+                        }
+                    }
+                    project.configurations.shadowCompile.allDependencies.each {
+                        if (! (it instanceof SelfResolvingDependency)) {
+                            def dependencyNode = dependenciesNode.appendNode('dependency')
+                            dependencyNode.appendNode('groupId', it.group)
+                            dependencyNode.appendNode('artifactId', it.name)
+                            dependencyNode.appendNode('version', it.version)
+                            dependencyNode.appendNode('scope', 'compile')
+                        }
+                        else if(it instanceof ProjectDependency) {
+                            def dependencyNode = dependenciesNode.appendNode('dependency')
+                            dependencyNode.appendNode('groupId', project.group)
+                            dependencyNode.appendNode('artifactId', it.name)
+                            dependencyNode.appendNode('version', project.version)
+                            dependencyNode.appendNode('scope', 'compile')
+
+                        }
+                    }
+                    project.configurations.shadowRuntime.allDependencies.each {
+                        if (! (it instanceof SelfResolvingDependency)) {
+                            def dependencyNode = dependenciesNode.appendNode('dependency')
+                            dependencyNode.appendNode('groupId', it.group)
+                            dependencyNode.appendNode('artifactId', it.name)
+                            dependencyNode.appendNode('version', it.version)
+                            dependencyNode.appendNode('scope', 'runtime')
+                        }
+                        else if(it instanceof ProjectDependency) {
+                            def dependencyNode = dependenciesNode.appendNode('dependency')
+                            dependencyNode.appendNode('groupId', project.group)
+                            dependencyNode.appendNode('artifactId', it.name)
+                            dependencyNode.appendNode('version', project.version)
+                            dependencyNode.appendNode('scope', 'runtime')
+
+                        }
+                    }
+                    xmlNode.children().last() + pomInfo
+                }
+                artifact sourcesJar {
+                    classifier "sources"
+                }
+                artifact javadocJar {
+                    classifier "javadoc"
+                }
+
             }
             else {
                 from components.java
-            }
-            artifact sourcesJar {
-                classifier "sources"
-            }
-            artifact javadocJar {
-                classifier "javadoc"
-            }
-            pom.withXml {
-                def xml = asNode()
+                artifact sourcesJar {
+                    classifier "sources"
+                }
+                artifact javadocJar {
+                    classifier "javadoc"
+                }
 
-                xml.children().last() + pomInfo
+                pom.withXml {
+                    def xml = asNode()
+
+                    xml.children().last() + pomInfo
+                }
             }
 
         }
@@ -105,12 +167,12 @@ bintray {
     user = u
     key = p
     publications = ['maven']
-    publish = true
+    publish = false
     pkg {
-        repo = 'grails-core'
-        userOrg = 'grails'
+        repo = 'core-releases-local'
+        userOrg = 'micronaut'
         name = project.name
-        desc = "${project.title} - ${project.projectDesc}".toString()
+        desc = "${project.title} - ${project.projectDesc} - ${project.name} module".toString()
         websiteUrl = projectUrl
         issueTrackerUrl = "https://github.com/$githubSlug/issues"
         vcsUrl = "https://github.com/$githubSlug"

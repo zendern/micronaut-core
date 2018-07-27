@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 original authors
+ * Copyright 2017-2018 original authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,23 +15,14 @@
  */
 package io.micronaut.bootstrap
 
-import io.micronaut.context.ApplicationContext
-import io.micronaut.context.DefaultApplicationContext
-import io.micronaut.context.annotation.Requires
-import io.micronaut.context.env.Environment
-import io.micronaut.context.env.PropertySource
-import io.micronaut.context.env.PropertySourceLocator
-import io.micronaut.core.io.ResourceLoader
-import io.micronaut.context.ApplicationContext
-import io.micronaut.context.DefaultApplicationContext
-import io.micronaut.context.annotation.Requires
-import io.micronaut.context.env.Environment
-import io.micronaut.context.env.PropertySource
-import io.micronaut.context.env.PropertySourceLocator
-import io.micronaut.core.io.ResourceLoader
-import spock.lang.Specification
 
-import javax.inject.Singleton
+import io.micronaut.context.ApplicationContext
+import io.micronaut.context.DefaultApplicationContext
+import io.micronaut.context.env.PropertySource
+import io.micronaut.core.io.ResourceLoader
+import io.micronaut.core.io.scan.ClassPathResourceLoader
+import spock.lang.Specification
+import java.util.stream.Stream
 
 /**
  * @author graemerocher
@@ -43,21 +34,41 @@ class CustomPropertySourceLocatorSpec extends Specification {
     void "test that a PropertySource from a PropertySourceLocator overrides application config"() {
         given:
         def cl = getClass().getClassLoader()
-        ResourceLoader resourceLoader = new ResourceLoader() {
+        ResourceLoader resourceLoader = new ClassPathResourceLoader() {
+            @Override
+            ClassLoader getClassLoader() {
+                return cl
+            }
+
             @Override
             Optional<InputStream> getResourceAsStream(String path) {
                 if(path == "bootstrap.properties") {
                     return Optional.of(new ByteArrayInputStream('''\
 some.bootstrap.value=bar
-some.bootstrap.config=true
+some.bootstrap.config=xxx
+'''.bytes))
+                }
+                if(path == "application.properties") {
+                    return Optional.of(new ByteArrayInputStream('''\
+some.bootstrap.config=yyy
 '''.bytes))
                 }
                 return Optional.empty()
             }
 
             @Override
-            ClassLoader getClassLoader() {
-                return cl
+            Optional<URL> getResource(String path) {
+                return null
+            }
+
+            @Override
+            Stream<URL> getResources(String name) {
+                return null
+            }
+
+            @Override
+            ResourceLoader forBase(String basePath) {
+                return null
             }
         }
 
@@ -68,9 +79,13 @@ some.bootstrap.config=true
         ))
         applicationContext.start()
 
+
         expect:
-        applicationContext.environment.getProperty('custom.prop.a', String).get() == 'AAA'
+        // config passed directly to context higher priority
         applicationContext.environment.getProperty('some.bootstrap.value', String).get() == 'overridden'
+        applicationContext.environment.getProperty('custom.prop.a', String).get() == 'BBB'
+        // bootstrap.properties config higher priority than application.properties config
+        applicationContext.environment.getProperty('some.bootstrap.config', String).get() == 'xxx'
     }
 
     void "test that a PropertySource from a PropertySourceLocator doesn't override application config when not enabled"() {
@@ -85,18 +100,4 @@ some.bootstrap.config=true
         applicationContext.environment.getProperty('custom.prop.a', String).get() == 'BBB'
     }
 
-    @Singleton
-    @Requires(property = 'some.bootstrap.config')
-    static class MyLocator implements PropertySourceLocator {
-
-        @Override
-        Optional<PropertySource> load(Environment environment) {
-            return Optional.of(
-                    PropertySource.of(
-                            'custom',
-                            ['custom.prop.a': 'AAA']
-                    )
-            )
-        }
-    }
 }

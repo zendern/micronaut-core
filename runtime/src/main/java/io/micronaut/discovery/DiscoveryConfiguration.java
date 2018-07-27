@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 original authors
+ * Copyright 2017-2018 original authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,19 +13,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.micronaut.discovery;
 
 import io.micronaut.core.util.Toggleable;
-import io.micronaut.core.util.Toggleable;
 
 /**
- * Base class for common discovery configuration options
+ * Base class for common discovery configuration options.
  *
  * @author graemerocher
  * @since 1.0
  */
 public abstract class DiscoveryConfiguration implements Toggleable {
 
+    /**
+     * The prefix to use for all client discovery settings.
+     */
     public static final String PREFIX = "discovery";
 
     private boolean enabled = true;
@@ -38,6 +41,9 @@ public abstract class DiscoveryConfiguration implements Toggleable {
         return enabled;
     }
 
+    /**
+     * @param enabled Whether discovery is enabled
+     */
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
     }

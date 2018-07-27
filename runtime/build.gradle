@@ -1,24 +1,70 @@
-dependencies {
-    compile project(":inject")
-    compile project(":http")
-    compile project(":aop")
-    compile "javax.validation:validation-api:$validationVersion"
-    compile "com.fasterxml.jackson.core:jackson-databind:$jacksonVersion"
-    runtime "com.fasterxml.jackson.datatype:jackson-datatype-jdk8:$jacksonVersion"
-    runtime "com.fasterxml.jackson.datatype:jackson-datatype-jsr310:$jacksonVersion"
+apply plugin: 'com.github.johnrengelman.plugin-shadow'
 
-    compile "io.reactivex.rxjava2:rxjava:$rxJava2Version"
+dependencies {
+    for(proj in ['inject', 'http', 'aop']) {
+        shadowCompile project(":$proj")
+        compile project(":$proj")
+    }
+
+    shadowCompile dependencyVersion("validation")
+    shadowCompile dependencyVersion("jackson")
+    shadowCompile dependencyVersion("rxjava2")
+
+    compile dependencyVersion("validation")
+    compile dependencyVersion("jackson")
+    compile dependencyVersion("rxjava2")
+
+    shadowRuntime([
+        dependencyVersion('jackson.datatype'),
+        dependencyModuleVersion('jackson.datatype', 'jackson-datatype-jsr310')
+    ])
+    runtime([
+        dependencyVersion('jackson.datatype'),
+        dependencyModuleVersion('jackson.datatype', 'jackson-datatype-jsr310')
+    ])
 
     compileOnly 'org.glassfish:javax.el:3.0.1-b09'
-    compileOnly "io.projectreactor:reactor-core:$reactorVersion"
-    compileOnly "com.github.akarnokd:rxjava2-interop:$rxJavaInteropVersion"
-
+    compileOnly dependencyVersion("reactor")
+    compileOnly dependencyVersion("rxjava1.interop")
+    compileOnly "com.github.ben-manes.caffeine:caffeine:$caffeineVersion"
     compileOnly project(":inject-java")
-    testCompile "com.github.akarnokd:rxjava2-interop:$rxJavaInteropVersion"
-    testCompile "io.projectreactor:reactor-core:$reactorVersion"
+
+    testCompile dependencyVersion("rxjava1.interop")
+    testCompile dependencyVersion("reactor")
     testCompile project(":inject-java")
     testCompile project(":inject-groovy")
-
-    testCompile "org.grails:grails-datastore-gorm:$gormVersion"
+    testCompile "com.google.testing.compile:compile-testing:0.12"
+    testCompile dependencyModuleVersion("gorm", "grails-datastore-gorm")
+    testCompile files(org.gradle.internal.jvm.Jvm.current().toolsJar)
 }
+
+shadowJar {
+    dependencies {
+        for(dep in project.configurations.shadowCompile.dependencies + project.configurations.shadowRuntime.dependencies) {
+            if(dep instanceof ProjectDependency) {
+                exclude(project(":$dep.name"))
+            }
+            else if(dep instanceof ExternalDependency) {
+                exclude(dependency("$dep.group:$dep.name:.*"))
+            }
+        }
+        exclude(project(":core"))
+        exclude(dependency("com.fasterxml.*:.*:.*"))
+        exclude(dependency(dependencyVersion("slf4j")))
+        exclude(dependency(dependencyVersion("snakeyaml")))
+        exclude(dependency(group: 'javax.inject', name: 'javax.inject', version: '1'))
+        exclude(dependency('org.ow2.asm:.*:.*'))
+        exclude(dependency('org.reactivestreams:.*:.*'))
+        exclude(dependency('com.google.code.findbugs:.*:.*'))
+        exclude(dependency('com.github.ben-manes.caffeine:.*:.*'))
+    }
+
+    relocate "org.objectweb.asm", "io.micronaut.asm"
+    relocate "com.github.benmanes.caffeine", "io.micronaut.caffeine"
+
+}
+tasks.withType(com.github.jengelman.gradle.plugins.shadow.tasks.ConfigureShadowRelocation) { t ->
+    t.enabled = false
+}
+
 //compileTestGroovy.groovyOptions.forkOptions.jvmArgs = ['-Xdebug', '-Xrunjdwp:transport=dt_socket,server=y,suspend=y,address=5005']

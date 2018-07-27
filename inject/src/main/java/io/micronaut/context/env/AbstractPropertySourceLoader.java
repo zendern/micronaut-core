@@ -1,39 +1,45 @@
 /*
- * Copyright 2017 original authors
- * 
+ * Copyright 2017-2018 original authors
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  * http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License. 
+ * limitations under the License.
  */
+
 package io.micronaut.context.env;
 
+import io.micronaut.context.exceptions.ConfigurationException;
+import io.micronaut.core.io.ResourceLoader;
 import io.micronaut.core.order.Ordered;
-import io.micronaut.core.value.ValueException;
 import io.micronaut.core.util.Toggleable;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
 /**
- * An abstract implementation of the {@link PropertySourceLoader} interface
+ * An abstract implementation of the {@link PropertySourceLoader} interface.
  *
  * @author Graeme Rocher
  * @since 1.0
  */
-public abstract class AbstractPropertySourceLoader implements PropertySourceLoader, Toggleable, Ordered{
+public abstract class AbstractPropertySourceLoader implements PropertySourceLoader, Toggleable, Ordered {
 
+    /**
+     * Default position for the property source loader.
+     */
     public static final int DEFAULT_POSITION = EnvironmentPropertySource.POSITION - 100;
 
     @Override
@@ -42,70 +48,88 @@ public abstract class AbstractPropertySourceLoader implements PropertySourceLoad
     }
 
     @Override
-    public Optional<PropertySource> load(String resourceName, Environment environment, String environmentName) {
-        if(isEnabled()) {
-            Map<String,Object> finalMap = new LinkedHashMap<>();
-            String ext = getFileExtension();
-            String fileName = resourceName;
-            if(environmentName != null) {
-                fileName += "-" + environmentName;
-            }
-            String qualifiedName = fileName;
-            fileName += "." + ext;
-            loadProperties(environment, fileName, finalMap);
+    public Optional<PropertySource> load(String resourceName, ResourceLoader resourceLoader, String environmentName) {
+        if (isEnabled()) {
+            Set<String> extensions = getExtensions();
+            for (String ext : extensions) {
+                String fileName = resourceName;
+                if (environmentName != null) {
+                    fileName += "-" + environmentName;
+                }
+                String qualifiedName = fileName;
+                fileName += "." + ext;
+                Map<String, Object> finalMap = loadProperties(resourceLoader, qualifiedName, fileName);
 
-            int order = this.getOrder();
-            if(environmentName != null) {
-                order++; // higher precedence than the default
-            }
-            if(!finalMap.isEmpty()) {
-                int finalOrder = order;
-                MapPropertySource newPropertySource = new MapPropertySource(qualifiedName, finalMap) {
-                    @Override
-                    public int getOrder() {
+                int order = this.getOrder();
+                if (environmentName != null) {
+                    order++; // higher precedence than the default
+                }
+                if (!finalMap.isEmpty()) {
+                    int finalOrder = order;
+                    MapPropertySource newPropertySource = new MapPropertySource(qualifiedName, finalMap) {
+                        @Override
+                        public int getOrder() {
 
-                        return finalOrder;
-                    }
-                };
-                return Optional.of(newPropertySource);
+                            return finalOrder;
+                        }
+                    };
+                    return Optional.of(newPropertySource);
+                }
             }
         }
 
         return Optional.empty();
     }
 
-    /**
-     * @return The file extension to process
-     */
-    protected abstract String getFileExtension();
-
-    private void loadProperties(Environment environment, String fileName, Map<String, Object> finalMap) {
-        Optional<InputStream> config = readInput(environment, fileName);
-        if(config.isPresent()) {
-            try(InputStream input = config.get()) {
-                processInput(input, finalMap);
-            }
-            catch (IOException e){
-                throw new ValueException("I/O exception occurred reading ["+fileName+"]: " + e.getMessage(), e);
+    private Map<String, Object> loadProperties(ResourceLoader resourceLoader, String qualifiedName, String fileName) {
+        Optional<InputStream> config = readInput(resourceLoader, fileName);
+        if (config.isPresent()) {
+            try (InputStream input = config.get()) {
+                return read(qualifiedName, input);
+            } catch (IOException e) {
+                throw new ConfigurationException("I/O exception occurred reading [" + fileName + "]: " + e.getMessage(), e);
             }
         }
+        return Collections.emptyMap();
     }
 
-    protected Optional<InputStream> readInput(Environment environment, String fileName) {
-        return environment.getResourceAsStream(fileName);
+    @Override
+    public Map<String, Object> read(String name, InputStream input) throws IOException {
+        Map<String, Object> finalMap = new LinkedHashMap<>();
+        processInput(name, input, finalMap);
+        return finalMap;
     }
 
-    protected abstract void processInput(InputStream input, Map<String, Object> finalMap) throws IOException;
+    /**
+     * @param resourceLoader The resource loader
+     * @param fileName       The file name
+     * @return An input stream wrapped inside an {@link Optional}
+     */
+    protected Optional<InputStream> readInput(ResourceLoader resourceLoader, String fileName) {
+        return resourceLoader.getResourceAsStream(fileName);
+    }
 
+    /**
+     * @param name     The name
+     * @param input    The input stream
+     * @param finalMap The map with all the properties processed
+     * @throws IOException If the input stream doesn't exist
+     */
+    protected abstract void processInput(String name, InputStream input, Map<String, Object> finalMap) throws IOException;
+
+    /**
+     * @param finalMap The map with all the properties processed
+     * @param map      The map to process
+     * @param prefix   The prefix for the keys
+     */
     protected void processMap(Map<String, Object> finalMap, Map map, String prefix) {
         for (Object o : map.entrySet()) {
             Map.Entry entry = (Map.Entry) o;
             String key = entry.getKey().toString();
             Object value = entry.getValue();
-            if(value instanceof Map) {
+            if (value instanceof Map) {
                 processMap(finalMap, (Map) value, prefix + key + '.');
-            }
-            else {
+            } else {
                 finalMap.put(prefix + key, value);
             }
         }

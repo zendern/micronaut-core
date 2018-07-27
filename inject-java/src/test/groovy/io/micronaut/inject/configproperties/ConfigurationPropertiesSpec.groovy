@@ -1,11 +1,22 @@
+/*
+ * Copyright 2017-2018 original authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.micronaut.inject.configproperties
 
 import io.micronaut.context.ApplicationContext
 import io.micronaut.context.DefaultApplicationContext
-import io.micronaut.context.env.PropertySource
-import io.micronaut.context.ApplicationContext
-import io.micronaut.context.DefaultApplicationContext
-import io.micronaut.context.env.MapPropertySource
 import io.micronaut.context.env.PropertySource
 import spock.lang.Specification
 
@@ -17,6 +28,8 @@ class ConfigurationPropertiesSpec extends Specification {
         applicationContext.environment.addPropertySource(PropertySource.of(
             'test',
             ['foo.bar.port':'8080',
+             'foo.bar.max-size':'1MB',
+             'foo.bar.another-size':'1MB',
             'foo.bar.anotherPort':'9090',
             'foo.bar.intList':"1,2,3",
             'foo.bar.stringList':"1,2",
@@ -33,7 +46,8 @@ class ConfigurationPropertiesSpec extends Specification {
 
         expect:
         config.port == 8080
-
+        config.maxSize == 1048576
+        config.anotherSize == 1048576
         config.anotherPort == 9090
         config.intList == [1,2,3]
         config.flags == [one:1, two:2]

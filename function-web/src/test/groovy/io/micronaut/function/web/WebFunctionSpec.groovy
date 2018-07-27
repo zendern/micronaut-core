@@ -1,29 +1,21 @@
 /*
- * Copyright 2017 original authors
- * 
+ * Copyright 2017-2018 original authors
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  * http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License. 
+ * limitations under the License.
  */
 package io.micronaut.function.web
 
 import groovy.transform.EqualsAndHashCode
-import io.micronaut.context.ApplicationContext
-import io.micronaut.function.LocalFunctionRegistry
-import io.micronaut.http.HttpHeaders
-import io.micronaut.http.HttpRequest
-import io.micronaut.http.HttpResponse
-import io.micronaut.http.HttpStatus
-import io.micronaut.http.MediaType
-import io.micronaut.http.client.RxHttpClient
 import io.micronaut.context.ApplicationContext
 import io.micronaut.function.FunctionBean
 import io.micronaut.function.LocalFunctionRegistry
@@ -47,7 +39,7 @@ class WebFunctionSpec extends Specification {
 
     void "test the function registry"() {
         given:
-        LocalFunctionRegistry registry = ApplicationContext.run(LocalFunctionRegistry)
+        LocalFunctionRegistry registry = ApplicationContext.run().getBean(LocalFunctionRegistry)
 
         expect:
         registry.findConsumer("consumer/string").isPresent()
@@ -110,6 +102,22 @@ class WebFunctionSpec extends Specification {
         embeddedServer.stop()
     }
 
+    void 'test camel cased function bean'() {
+        given:
+        EmbeddedServer embeddedServer = ApplicationContext.run(EmbeddedServer)
+        RxHttpClient client = embeddedServer.applicationContext.createBean(RxHttpClient, embeddedServer.getURL())
+
+        when:
+        HttpResponse<String> response = client.toBlocking().exchange('/helloWorld', String)
+
+        then:
+        response.code() == HttpStatus.OK.code
+        response.body() == 'hello there world'
+
+        cleanup:
+        embeddedServer.stop()
+    }
+
     void "test string consumer with text plain"() {
         given:
         EmbeddedServer embeddedServer = ApplicationContext.run(EmbeddedServer)
@@ -150,10 +158,23 @@ class WebFunctionSpec extends Specification {
 
     @FunctionBean("supplier/string")
     static class StringSupplier implements Supplier<String> {
-
+        String getValue() {
+            return "value"
+        }
         @Override
         String get() {
-            return "value"
+            return getValue()
+        }
+    }
+
+    @FunctionBean("helloWorld")
+    static class CamelCaseSupplier implements Supplier<String> {
+        String getValue() {
+            return "hello there world"
+        }
+        @Override
+        String get() {
+            return getValue()
         }
     }
 

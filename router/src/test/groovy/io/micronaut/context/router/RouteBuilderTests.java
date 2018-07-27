@@ -1,38 +1,35 @@
 /*
- * Copyright 2017 original authors
- * 
+ * Copyright 2017-2018 original authors
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  * http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License. 
+ * limitations under the License.
  */
 package io.micronaut.context.router;
 
 import io.micronaut.context.ApplicationContext;
 import io.micronaut.context.DefaultApplicationContext;
+import io.micronaut.context.annotation.Executable;
 import io.micronaut.http.HttpMethod;
 import io.micronaut.http.HttpStatus;
 import io.micronaut.http.MediaType;
+import io.micronaut.http.annotation.Controller;
 import org.junit.Test;
-import io.micronaut.context.ApplicationContext;
-import io.micronaut.context.DefaultApplicationContext;
-import io.micronaut.http.HttpMethod;
-import io.micronaut.http.HttpStatus;
-import io.micronaut.http.MediaType;
 import io.micronaut.web.router.*;
 
 import javax.inject.Inject;
+import javax.inject.Singleton;
 
 import java.util.List;
 
-import static io.micronaut.http.MediaType.*;
 import static org.junit.Assert.*;
 /**
  * @author Graeme Rocher
@@ -100,7 +97,7 @@ public class RouteBuilderTests {
                     );
 
             GET("/message{/message}", controller, "hello", String.class).consumes(MediaType.APPLICATION_JSON_TYPE);
-            GET("/books{/id}", controller, "show").nest(() ->
+            GET("/books{/id}", controller, "show", Long.class).nest(() ->
                     GET("/authors", controller)
             );
             GET(controller);
@@ -117,7 +114,7 @@ public class RouteBuilderTests {
             POST("/books", controller, "save").consumes(MediaType.APPLICATION_JSON_TYPE);
 
             // handle errors TODO
-            error(ClassNotFoundException.class, controller);
+            error(ClassNotFoundException.class, controller, "classNotFound");
             error(ReflectiveOperationException.class, controller);
             // handle status codes
             status(HttpStatus.NOT_FOUND, controller, "notFound");
@@ -131,6 +128,8 @@ public class RouteBuilderTests {
         }
     }
 
+    @Singleton
+    @Executable
     static class BookController {
         String hello(String message) {
             return "Hello " + message;
@@ -139,8 +138,8 @@ public class RouteBuilderTests {
         String show(Long id) { return "Book " + id; }
         String index() { return "dummy"; }
         String save() { return "dummy"; }
-        String delete() { return "dummy"; }
-        String update() { return "dummy"; }
+        String delete(Long id) { return "dummy"; }
+        String update(Long id) { return "dummy"; }
 
         String notFound() { return "not found";}
 
@@ -153,6 +152,8 @@ public class RouteBuilderTests {
         }
     }
 
+    @Singleton
+    @Executable
     static class AuthorController {
         String hello(String message) {
             return "Hello " + message;

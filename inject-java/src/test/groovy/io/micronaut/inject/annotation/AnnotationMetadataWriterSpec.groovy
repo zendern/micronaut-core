@@ -1,29 +1,20 @@
 /*
- * Copyright 2017 original authors
- * 
+ * Copyright 2017-2018 original authors
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  * http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License. 
+ * limitations under the License.
  */
 package io.micronaut.inject.annotation
 
-import io.micronaut.aop.Around
-import io.micronaut.aop.introduction.StubIntroducer
-import io.micronaut.context.annotation.Primary
-import io.micronaut.context.annotation.Requirements
-import io.micronaut.context.annotation.Requires
-import io.micronaut.context.annotation.Type
-import io.micronaut.core.annotation.AnnotationMetadata
-import io.micronaut.inject.AbstractTypeElementSpec
-import io.micronaut.retry.annotation.Recoverable
 import io.micronaut.aop.Around
 import io.micronaut.aop.introduction.StubIntroducer
 import io.micronaut.context.annotation.Primary
@@ -93,7 +84,7 @@ class Test {
         metadata.getValue(TopLevel, "nested", Nested).get().num() == 10
 
         when:
-        TopLevel topLevel = metadata.getAnnotation(TopLevel)
+        TopLevel topLevel = metadata.synthesize(TopLevel)
 
         then:
         topLevel.nested().num() == 10
@@ -188,20 +179,20 @@ class Test {
         metadata != null
         metadata.hasDeclaredAnnotation(Requirements)
         metadata.getValue(Requirements).get().size() == 2
-        metadata.getValue(Requirements).get()[0] instanceof AnnotationValue
+        metadata.getValue(Requirements).get()[0] instanceof io.micronaut.core.annotation.AnnotationValue
         metadata.getValue(Requirements).get()[0].values.get('property') == 'blah'
-        metadata.getValue(Requirements).get()[1] instanceof AnnotationValue
+        metadata.getValue(Requirements).get()[1] instanceof io.micronaut.core.annotation.AnnotationValue
         metadata.getValue(Requirements).get()[1].values.get('classes') == ['test.Test'] as Object[]
 
         when:
-        Requires[] requires = metadata.getAnnotation(Requirements).value()
+        Requires[] requires = metadata.synthesize(Requirements).value()
 
         then:
         requires.size() == 2
         requires[0].property() == 'blah'
 
         when:
-        requires = metadata.getAnnotationsByType(Requires)
+        requires = metadata.synthesizeAnnotationsByType(Requires)
 
         then:
         requires.size() == 2
@@ -226,8 +217,8 @@ class Test {
         AnnotationMetadata metadata = writeAndLoadMetadata(className, toWrite)
 
         then:
-        metadata.getAnnotation(Primary) instanceof Primary
-        metadata.declaredAnnotations.size() == 1
+        metadata.synthesize(Primary) instanceof Primary
+        metadata.synthesizeDeclared().size() == 1
         metadata != null
         metadata.hasDeclaredAnnotation(Primary)
         !metadata.hasDeclaredAnnotation(Singleton)
@@ -339,7 +330,7 @@ interface ITest {
         metadata.getValue(Around, 'lazy').isPresent()
         metadata.isTrue(Around, 'proxyTarget')
         metadata.isFalse(Around, 'lazy')
-        metadata.getAnnotationNamesByStereotype(Around.name) == [Trace.name, SomeOther.name] as Set
+        metadata.getAnnotationNamesByStereotype(Around.name) == [Trace.name, SomeOther.name]
     }
 
 }

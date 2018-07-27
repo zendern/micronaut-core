@@ -1,37 +1,32 @@
 /*
- * Copyright 2017 original authors
- * 
+ * Copyright 2017-2018 original authors
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  * http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License. 
+ * limitations under the License.
  */
 package io.micronaut.ast.groovy.annotation
 
-import io.micronaut.context.annotation.Context
-import io.micronaut.context.annotation.Infrastructure
-import io.micronaut.context.annotation.Primary
-import io.micronaut.context.annotation.Requirements
-import io.micronaut.context.annotation.Requires
-import io.micronaut.inject.annotation.AnnotationValue
+import io.micronaut.context.annotation.ConfigurationReader
+import io.micronaut.core.annotation.AnnotationValue
+import io.micronaut.inject.annotation.MultipleAlias
 import org.codehaus.groovy.ast.ASTNode
 import org.codehaus.groovy.ast.ClassNode
 import org.codehaus.groovy.ast.MethodNode
 import org.codehaus.groovy.ast.builder.AstBuilder
 import io.micronaut.aop.Around
-import io.micronaut.context.annotation.Infrastructure
 import io.micronaut.context.annotation.Primary
 import io.micronaut.context.annotation.Requirements
 import io.micronaut.context.annotation.Requires
 import io.micronaut.core.annotation.AnnotationMetadata
-import io.micronaut.inject.annotation.AnnotationValue
 import io.micronaut.runtime.context.scope.Refreshable
 import io.micronaut.runtime.context.scope.ScopedProxy
 import spock.lang.Ignore
@@ -47,6 +42,25 @@ import javax.inject.Singleton
  */
 class GroovyAnnotationMetadataBuilderSpec extends Specification {
 
+    void "test multiple alias definitions with value"() {
+        given:
+        AnnotationMetadata metadata = buildTypeAnnotationMetadata('test.Multi', '''\
+package test;
+
+import io.micronaut.inject.annotation.*;
+
+@MultipleAlias("test")
+class Multi {
+}
+''', )
+        expect:
+        metadata != null
+        metadata.hasDeclaredStereotype(ConfigurationReader)
+        metadata.getValue(ConfigurationReader, String).get() == 'test'
+        metadata.hasDeclaredAnnotation(MultipleAlias)
+        metadata.getValue(MultipleAlias, String).get() == 'test'
+        metadata.getValue(MultipleAlias, "id", String).get() == 'test'
+    }
     void "test annotation names by stereotype"() {
         given:
         AnnotationMetadata metadata = buildTypeAnnotationMetadata('test.Test','''\
@@ -141,7 +155,7 @@ class Test {
         metadata != null
         metadata.hasDeclaredAnnotation(Requires)
         metadata.isPresent(Requires, 'condition')
-        Closure.isAssignableFrom( metadata.getAnnotation(Requires).condition() )
+        Closure.isAssignableFrom( metadata.synthesize(Requires).condition() )
     }
 
     void "test build repeatable annotations"() {
@@ -186,26 +200,6 @@ class Test {
         metadata.hasAnnotation(Primary)
         metadata.hasStereotype(Qualifier)
         !metadata.hasStereotype(Singleton)
-    }
-
-    void "test parse inherited stereotype data"() {
-
-        given:
-        AnnotationMetadata metadata = buildTypeAnnotationMetadata("test.Test",'''\
-package test;
-
-@io.micronaut.context.annotation.Infrastructure
-class Test {
-}
-''')
-
-        expect:
-        metadata != null
-        metadata.hasAnnotation(Infrastructure)
-        metadata.hasDeclaredAnnotation(Infrastructure)
-        metadata.hasStereotype(Singleton)
-        metadata.hasStereotype(Scope)
-        metadata.hasStereotype(Context)
     }
 
     void "test parse inherited stereotype data attributes default values"() {

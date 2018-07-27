@@ -1,6 +1,6 @@
-The link:{api}/io/micronaut/http/annotation/Controller.html[@Controller] annotation used in the previous section is one of link:{api}/io/micronaut/web/router/annotation/package-summary.html[several annotations] that allow you to control the construction of HTTP routes.
+The link:{api}/io/micronaut/http/annotation/Controller.html[@Controller] annotation used in the previous section is one of link:{api}/io/micronaut/http/annotation/package-summary.html[several annotations] that allow you to control the construction of HTTP routes.
 
-=== URI Paths
+== URI Paths
 
 In the previous example a value of `/hello` was specified as the path to the controller. If no value is specified to the `@Controller` action then the URI is formulated from the class name.
 
@@ -27,11 +27,26 @@ The following table summarizes values for the `@Controller` annotation and the c
 |`/`
 |===
 
-The value of the `@Controller` annotation is a https://tools.ietf.org/html/rfc6570[RFC-6570 URI template] you can therefore embed URI variables within the path using the syntax defined the by the URI template specification.
+The value of the `@Controller` annotation is a https://tools.ietf.org/html/rfc6570[RFC-6570 URI template] you can therefore embed URI variables within the path using the syntax defined by the URI template specification.
 
 NOTE: Many other frameworks, including Spring, implement the URI template specification
 
-=== URI Variables
+The actual implementation is handled by the api:http.uri.UriMatchTemplate[] class, which extends api:http.uri.UriTemplate[].
+
+You can use this class explicitly within your application to build URIs. For example:
+
+.Using a UriTemplate
+[source,java]
+----
+include::{testsuite}/server/uris/UriTemplateTest.java[tags=match, indent=0]
+----
+
+<1> The `match` method can be used to match a path
+<2> The `expand` method can be used to expand a template into a URI.
+
+If you have a requirement to build paths to include in your responses you can use api:http.uri.UriTemplate[] to do so.
+
+== URI Path Variables
 
 URI variables can be referenced via method arguments. For example:
 
@@ -44,10 +59,10 @@ include::{testsuite}/server/routes/IssuesController.java[tags=class, indent=0]
 ----
 
 <1> The `@Controller` annotation is specified without an argument resulting in a base URI of `/issues`
-<2> The link:{api}/io/micronaut/web/router/annotation/Get.html[Get] annotation is used to map the method to an HTTP link:{api}/io/micronaut/http/HttpMethod.html#GET[GET] with a URI variable embedded in the URI called `number`
+<2> The link:{api}/io/micronaut/http/annotation/Get.html[Get] annotation is used to map the method to an HTTP link:{api}/io/micronaut/http/HttpMethod.html#GET[GET] with a URI variable embedded in the URI called `number`
 <3> The value of the URI variable is referenced in the implementation
 
-Micronaut will map the URI `/issues/issue/{number}` for the above controller. We can assert this is the case by writing a unit test, this time in Java and JUnit:
+Micronaut will map the URI `/issues/{number}` for the above controller. We can assert this is the case by writing a unit test, this time in Java and JUnit:
 
 .Testing URI Variables
 [source,java]
@@ -62,18 +77,62 @@ include::{testsuite}/server/routes/IssuesControllerTest.java[tags=test, indent=4
 ----
 
 <1> For JUnit you can write methods to start and stop the server for the scope of the test
-<2> The tests sends a request to the URI `/issues/show/12`
+<2> The tests sends a request to the URI `/issues/12`
 <3> And then asserts the response is "Issue # 12"
 
-If you invoke the previous endpoint without the required URI variable or with an invalid type, Micronaut responds with the appropriate HTTP failure codes as illustrated in the next Spock test.
+If you invoke the previous endpoint without the required URI variable or with an invalid type, Micronaut responds with the appropriate HTTP failure codes as illustrated in the following Spock tests that use the <<httpClient,HTTP client>>.
 
-.Testing Missing URI Variables
+.Testing for Response Errors
 [source,java]
 ----
-include::{testsuite}/server/routes/IssuesControllerSpec.groovy[indent=0]
+include::{testsuite}/server/routes/IssuesControllerSpec.groovy[indent=0,tags=badrequest]
+
+include::{testsuite}/server/routes/IssuesControllerSpec.groovy[indent=0,tags=notfound]
 ----
 
-=== Routing Annotations
+Note that the URI template in the previous example requires that the `number` variable is specified. You can specify optional URI templates with the syntax: `/issues{/number}` and by annotating the `number` parameter with `@Nullable`.
+
+The following table provides some examples of URI templates and what they match:
+
+.URI Template Matching
+|===
+|Template |Description|Matching URI
+
+|`/books/{id}`
+| Simple match
+| `/books/1`
+
+|`/books/{id:2}`
+| A variable of 2 characters max
+| `/books/10`
+
+|`/books{/id}`
+| An optional URI variable
+| `/books/10` or `/books`
+
+| `/book{/id:[a-zA-Z]+}`
+| An optional URI variable with regex
+| `/books/foo`
+
+| `/books{?max,offset}`
+| Optional query parameters
+| `/books?max=10&offset=10`
+
+| `/books{/path:.*}{.ext}`
+| Regex path match with extension
+| `/books/foo/bar.xml`
+
+|===
+
+== URI Reserved Character Matching
+
+By default URI variables as defined by the https://tools.ietf.org/html/rfc6570[RFC-6570 URI template] spec cannot include reserved characters such as `/`, `?` etc.
+
+If you wish to match or expand entire paths then this can be problematic. As per https://tools.ietf.org/html/rfc6570#section-3.2.3[section 3.2.3 of the specification], you can use reserved expansion or matching using the `+` operator.
+
+For example the URI `/books/{+path}` will match both `/books/foo` and `/books/foo/bar` since the `+` indicates that the variable `path` should include reserved characters (in this case `/`).
+
+== Routing Annotations
 
 The previous example used the link:{api}/io/micronaut/http/annotation/Get.html[@Get] annotation to add method that accepted HTTP link:{api}/io/micronaut/http/HttpMethod.html#GET[GET] requests. The following tables summarizes the available annotations and how they map to the different HTTP methods:
 
@@ -123,7 +182,7 @@ String hello() {
 }
 ----
 
-=== Building Routes Programmatically
+== Building Routes Programmatically
 
 If you prefer to not use annotations and declare all of your routes in code then never fear, Micronaut has a flexible link:{api}/io/micronaut/web/router/RouteBuilder.html[RouteBuilder] API that makes it a breeze to define routes programmatically.
 

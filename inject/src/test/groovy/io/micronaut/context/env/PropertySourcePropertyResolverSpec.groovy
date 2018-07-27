@@ -1,20 +1,22 @@
 /*
- * Copyright 2017 original authors
- * 
+ * Copyright 2017-2018 original authors
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  * http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License. 
+ * limitations under the License.
  */
 package io.micronaut.context.env
 
+import io.micronaut.core.value.MapPropertyResolver
+import io.micronaut.core.value.PropertyResolver
 import spock.lang.Specification
 import spock.lang.Unroll
 
@@ -26,8 +28,28 @@ class PropertySourcePropertyResolverSpec extends Specification {
 
 
     @Unroll
-    void "test resolve environment properties"() {
+    void "test property resolution rules for key #key"() {
+        given:
+        PropertySourcePropertyResolver resolver = new PropertySourcePropertyResolver(
+                PropertySource.of("test", [TWITTER_OAUTH2_ACCESS_TOKEN: 'xxx'], PropertySource.PropertyConvention.ENVIRONMENT_VARIABLE),
+                PropertySource.of("test",
+                        ['camelCase.fooBar': 'xxx',
+                         'camelCase.URL'   : "http://localhost"],
+                        PropertySource.PropertyConvention.JAVA_PROPERTIES
+                )
+        )
 
+        expect:
+        resolver.containsProperty(key)
+        resolver.getProperty(key, Object).isPresent()
+        resolver.getProperty(key, String).get() == expected
+
+
+        where:
+        key                           | expected
+        'twitter.oauth2.access.token' | 'xxx'
+        'camel-case.foo-bar'          | 'xxx'
+        'camel-case.url'              | 'http://localhost'
     }
 
     @Unroll
@@ -46,10 +68,7 @@ class PropertySourcePropertyResolverSpec extends Specification {
         property                      | value | key                           | type   | expected
         'TWITTER_OAUTH2_ACCESS_TOKEN' | 'xxx' | 'twitter.oauth2-access-token' | String | 'xxx'
         'TWITTER_OAUTH2_ACCESS_TOKEN' | 'xxx' | 'twitter.oauth2.access.token' | String | 'xxx'
-        'TWITTER_OAUTH2_ACCESS_TOKEN' | 'xxx' | 'twitter.oauth2.accesstoken'  | String | 'xxx'
         'TWITTER_OAUTH2_ACCESS_TOKEN' | 'xxx' | 'twitter.oauth2.access-token' | String | 'xxx'
-        'TWITTER_OAUTH2_ACCESS_TOKEN' | 'xxx' | 'twitter.OAuth2AccessToken'   | String | 'xxx'
-        'TWITTER_OAUTH2_ACCESS_TOKEN' | 'xxx' | 'twitter.oauth2accesstoken'   | String | 'xxx'
 
     }
 
@@ -58,7 +77,8 @@ class PropertySourcePropertyResolverSpec extends Specification {
         given:
         def values = [
                 'foo.bar': '10',
-                'foo.baz': 20
+                'foo.baz': 20,
+                'bar': 30
         ]
         PropertySourcePropertyResolver resolver = new PropertySourcePropertyResolver(
                 PropertySource.of("test", [(property): value] + values)
@@ -87,6 +107,7 @@ class PropertySourcePropertyResolverSpec extends Specification {
         'my.property' | '${foo.bar[0]}'                                      | 'my.property' | Integer | 10
         'my.property' | '${USER}'                                            | 'my.property' | String  | System.getenv('USER')
         'my.property' | 'bolt://${NEO4J_HOST:localhost}:${NEO4J_PORT:32781}' | 'my.property' | String  | 'bolt://localhost:32781'
+        'my.property' | '${bar}'                                             | 'my.property' | Integer | 30
     }
 
 
@@ -109,7 +130,6 @@ class PropertySourcePropertyResolverSpec extends Specification {
         resolver.getProperty('my.property', Map).get() == [one: '10 + 50 + 10', two: '10', three: '10 + 20']
     }
 
-
     void "test resolve placeholders for properties"() {
         given:
         def values = [
@@ -128,5 +148,16 @@ class PropertySourcePropertyResolverSpec extends Specification {
 
         resolver.getProperty('my.property', Properties).isPresent()
         resolver.getProperty('my.property', Properties).get() == properties
+    }
+
+    void "test map placeholder resolver"() {
+        given:
+        String template = "Hello \${foo}!"
+        Map<String, Object> parameters = [foo: "bar"]
+        PropertyResolver propertyResolver = new MapPropertyResolver(parameters)
+        DefaultPropertyPlaceholderResolver propertyPlaceholderResolver = new DefaultPropertyPlaceholderResolver(propertyResolver)
+
+        expect:
+        propertyPlaceholderResolver.resolvePlaceholders(template).get() == "Hello bar!"
     }
 }

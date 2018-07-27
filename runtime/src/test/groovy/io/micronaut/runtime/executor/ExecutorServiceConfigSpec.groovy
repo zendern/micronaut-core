@@ -1,31 +1,24 @@
 /*
- * Copyright 2017 original authors
- * 
+ * Copyright 2017-2018 original authors
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  * http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License. 
+ * limitations under the License.
  */
 package io.micronaut.runtime.executor
 
 import io.micronaut.context.ApplicationContext
-import io.micronaut.context.env.PropertySource
 import io.micronaut.inject.qualifiers.Qualifiers
-import io.micronaut.scheduling.Schedulers
-import io.micronaut.context.ApplicationContext
-import io.micronaut.context.env.PropertySource
-import io.micronaut.inject.qualifiers.Qualifiers
-import io.micronaut.scheduling.Schedulers
+import io.micronaut.scheduling.TaskExecutors
 import io.micronaut.scheduling.executor.ExecutorConfiguration
-import io.micronaut.scheduling.executor.IOExecutorServiceConfig
-import io.micronaut.scheduling.executor.ScheduledExecutorServiceConfig
 import io.micronaut.scheduling.executor.UserExecutorConfiguration
 import spock.lang.Specification
 import spock.lang.Unroll
@@ -44,14 +37,11 @@ class ExecutorServiceConfigSpec extends Specification {
     @Unroll
     void "test configure custom executor with invalidate cache: #invalidateCache"() {
         given:
-        ApplicationContext ctx = ApplicationContext.build("test")
-                          .environment {
-            it.addPropertySource(PropertySource.of(
-                    'micronaut.server.executors.one.type':'FIXED',
-                    'micronaut.server.executors.one.nThreads':'5',
-                    'micronaut.server.executors.two.type':'work_stealing',
-            ))
-        }.start()
+        ApplicationContext ctx = ApplicationContext.run(
+                'micronaut.executors.one.type':'FIXED',
+                'micronaut.executors.one.nThreads':'5',
+                'micronaut.executors.two.type':'work_stealing'
+        )
 
         when:
         def configs = ctx.getBeansOfType(ExecutorConfiguration)
@@ -72,8 +62,8 @@ class ExecutorServiceConfigSpec extends Specification {
         then:
         executorServices.size() == 4
         poolExecutor.corePoolSize == 5
-        ctx.getBean(ExecutorService.class, Qualifiers.byName(Schedulers.IO)) // the default IO executor
-        ctx.getBean(ScheduledExecutorService.class, Qualifiers.byName(Schedulers.SCHEDULED)) // the default IO executor
+        ctx.getBean(ExecutorService.class, Qualifiers.byName(TaskExecutors.IO)) // the default IO executor
+        ctx.getBean(ScheduledExecutorService.class, Qualifiers.byName(TaskExecutors.SCHEDULED)) // the default IO executor
         forkJoinPool == ctx.getBean(ExecutorService.class, Qualifiers.byName("two"))
         poolExecutor == ctx.getBean(ExecutorService.class, Qualifiers.byName("one"))
 
@@ -108,14 +98,11 @@ class ExecutorServiceConfigSpec extends Specification {
     @Unroll
     void "test configure custom executor - distinct initialization order with invalidate cache: #invalidateCache"() {
         given:
-        ApplicationContext ctx = ApplicationContext.build(environment)
-                .environment {
-            it.addPropertySource(PropertySource.of(
-                    'micronaut.server.executors.one.type':'FIXED',
-                    'micronaut.server.executors.one.nThreads':'5',
-                    'micronaut.server.executors.two.type':'work_stealing',
-            ))
-        }.start()
+        ApplicationContext ctx = ApplicationContext.run(
+                'micronaut.executors.one.type':'FIXED',
+                'micronaut.executors.one.nThreads':'5',
+                'micronaut.executors.two.type':'work_stealing'
+        )
 
 
 
@@ -127,8 +114,8 @@ class ExecutorServiceConfigSpec extends Specification {
         then:
         executorServices.size() == 4
         poolExecutor.corePoolSize == 5
-        ctx.getBean(ExecutorService.class, Qualifiers.byName(Schedulers.IO)) instanceof ThreadPoolExecutor
-        ctx.getBean(ScheduledExecutorService.class, Qualifiers.byName(Schedulers.SCHEDULED)) instanceof ScheduledExecutorService
+        ctx.getBean(ExecutorService.class, Qualifiers.byName(TaskExecutors.IO)) instanceof ThreadPoolExecutor
+        ctx.getBean(ScheduledExecutorService.class, Qualifiers.byName(TaskExecutors.SCHEDULED)) instanceof ScheduledExecutorService
         forkJoinPool == ctx.getBean(ExecutorService.class, Qualifiers.byName("two"))
         poolExecutor == ctx.getBean(ExecutorService.class, Qualifiers.byName("one"))
 
@@ -154,14 +141,11 @@ class ExecutorServiceConfigSpec extends Specification {
     @Unroll
     void "test configure existing IO executor - distinct initialization order with invalidate cache: #invalidateCache"() {
         given:
-        ApplicationContext ctx = ApplicationContext.build(environment)
-                .environment {
-            it.addPropertySource(PropertySource.of(
-                    'micronaut.server.executors.io.type':'FIXED',
-                    'micronaut.server.executors.io.nThreads':'5',
-                    'micronaut.server.executors.two.type':'work_stealing',
-            ))
-        }.start()
+        ApplicationContext ctx = ApplicationContext.run(
+                'micronaut.executors.io.type':'FIXED',
+                'micronaut.executors.io.nThreads':'5',
+                'micronaut.executors.two.type':'work_stealing'
+        )
 
 
 
@@ -170,7 +154,7 @@ class ExecutorServiceConfigSpec extends Specification {
 
         then:
         executorServices.size() == 3
-        ctx.getBean(ExecutorService.class, Qualifiers.byName(Schedulers.IO)) instanceof ThreadPoolExecutor
+        ctx.getBean(ExecutorService.class, Qualifiers.byName(TaskExecutors.IO)) instanceof ThreadPoolExecutor
 
         when:
         if(invalidateCache) {

@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 original authors
+ * Copyright 2017-2018 original authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,14 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.micronaut.management.health.indicator;
 
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import io.micronaut.health.HealthStatus;
 
 import javax.validation.constraints.NotNull;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Optional;
 
 /**
  * <p>Used to represent the output of a {@link HealthIndicator}.</p>
@@ -28,6 +29,7 @@ import java.util.Optional;
  * @author James Kleeh
  * @since 1.0
  */
+@JsonDeserialize(as = DefaultHealthResult.class)
 public interface HealthResult {
 
     /**
@@ -46,8 +48,9 @@ public interface HealthResult {
     Object getDetails();
 
     /**
-     * Creates a builder to build a {@link HealthResult}
-     * @param name The name of the result
+     * Creates a builder to build a {@link HealthResult}.
+     *
+     * @param name   The name of the result
      * @param status The status
      * @return The builder
      */
@@ -56,45 +59,53 @@ public interface HealthResult {
     }
 
     /**
-     * Creates a builder to build a {@link HealthResult}
+     * Creates a builder to build a {@link HealthResult}.
+     *
      * @param name The name of the result
      * @return The builder
      */
     static Builder builder(String name) {
         return new Builder(name);
     }
-    
+
+    /**
+     * Helper class to build instances.
+     */
     class Builder {
 
         private final String name;
-        private Optional<HealthStatus> status;
-        private Optional<Object> details;
-        
+        private HealthStatus status;
+        private Object details;
+
+        /**
+         * @param name   The name of the health result
+         * @param status The status
+         */
         Builder(String name, HealthStatus status) {
             this.name = name;
-            this.status = Optional.ofNullable(status);
-            this.details = Optional.empty();
-        }
-
-        Builder(String name) {
-            this.name = name;
-            this.status = Optional.empty();
-            this.details = Optional.empty();
+            this.status = status;
         }
 
         /**
-         * Assigns the status to the builder
+         * @param name   The name of the health result
+         */
+        Builder(String name) {
+            this.name = name;
+        }
+
+        /**
+         * Assigns the status to the builder.
          *
          * @param status The status, null allowed
          * @return The builder
          */
         public Builder status(HealthStatus status) {
-            this.status = Optional.ofNullable(status);
+            this.status = status;
             return this;
         }
 
         /**
-         * Builds the details based off an exception
+         * Builds the details based off an exception.
          *
          * @param ex The exception that occurred
          * @return The builder
@@ -105,39 +116,28 @@ public interface HealthResult {
             return details(error);
         }
 
-
         /**
-         * Sets the details of the result
+         * Sets the details of the result.
          *
          * @param details The details, null allowed
          * @return The builder
          */
         public Builder details(Object details) {
-            this.details = Optional.ofNullable(details);
+            this.details = details;
             return this;
         }
 
         /**
-         * Builds the result
+         * Builds the result.
+         *
          * @return The {@link HealthResult}
          */
         public HealthResult build() {
-            return new HealthResult() {
-                @Override
-                public String getName() {
-                    return name;
-                }
-
-                @Override
-                public HealthStatus getStatus() {
-                    return status.orElse(HealthStatus.UNKNOWN);
-                }
-
-                @Override
-                public Object getDetails() {
-                    return details.orElse(null);
-                }
-            };
+            return new DefaultHealthResult(
+                    name,
+                    status != null ? status : HealthStatus.UNKNOWN,
+                    details
+            );
         }
     }
 }

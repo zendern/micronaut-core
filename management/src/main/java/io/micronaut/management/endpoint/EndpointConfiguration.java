@@ -1,43 +1,50 @@
 /*
- * Copyright 2017 original authors
- * 
+ * Copyright 2017-2018 original authors
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  * http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License. 
+ * limitations under the License.
  */
+
 package io.micronaut.management.endpoint;
 
-import io.micronaut.context.annotation.Parameter;
 import io.micronaut.context.annotation.EachProperty;
-import io.micronaut.core.util.Toggleable;
+import io.micronaut.context.annotation.Parameter;
 
 import java.util.Optional;
 
 /**
- * An {@link Endpoint} configuration
+ * An {@link io.micronaut.management.endpoint.annotation.Endpoint} configuration.
  *
  * @author Graeme Rocher
  * @since 1.0
  */
 @EachProperty(EndpointConfiguration.PREFIX)
-public class EndpointConfiguration implements Toggleable {
+public class EndpointConfiguration {
 
+    /**
+     * The prefix for endpoints configurations.
+     */
     public static final String PREFIX = "endpoints";
 
-    private final String id;
-    private Optional<Boolean> enabled = Optional.empty();
-    private Optional<Boolean> sensitive = Optional.empty();
+    private Boolean enabled;
+    private Boolean sensitive;
 
+    private final String id;
     private EndpointDefaultConfiguration defaultConfiguration;
 
+    /**
+     * @param id The id of the endpoint
+     * @param defaultConfiguration The default endpoint configuration
+     */
     public EndpointConfiguration(@Parameter String id, EndpointDefaultConfiguration defaultConfiguration) {
         this.id = id;
         this.defaultConfiguration = defaultConfiguration;
@@ -45,29 +52,47 @@ public class EndpointConfiguration implements Toggleable {
 
     /**
      * @return The ID of the endpoint
-     * @see Endpoint#value()
+     * @see io.micronaut.management.endpoint.annotation.Endpoint#value()
      */
     public String getId() {
         return id;
     }
 
-    @Override
-    public boolean isEnabled() {
-        return enabled.orElseGet(()->defaultConfiguration.isEnabled());
+    /**
+     * @return Is the endpoint enabled. If not present, use the value of {@link io.micronaut.management.endpoint.annotation.Endpoint#defaultEnabled()}
+     */
+    public Optional<Boolean> isEnabled() {
+        if (enabled != null) {
+            return Optional.of(enabled);
+        }
+        return defaultConfiguration.isEnabled();
     }
 
     /**
-     * @return Does the endpoint expose sensitive information
+     * @return Does the endpoint expose sensitive information. If not present, use the value of {@link io.micronaut.management.endpoint.annotation.Endpoint#defaultSensitive()}
      */
-    public boolean isSensitive() {
-        return sensitive.orElseGet(()->defaultConfiguration.isSensitive());
+    public Optional<Boolean> isSensitive() {
+        if (sensitive != null) {
+            return Optional.of(sensitive);
+        }
+        return defaultConfiguration.isSensitive();
     }
 
+    /**
+     * Sets whether the endpoint is enabled.
+     *
+     * @param enabled True it is enabled, null for the default behaviour
+     */
     public void setEnabled(Boolean enabled) {
-        this.enabled = Optional.ofNullable(enabled);
+        this.enabled = enabled;
     }
 
+    /**
+     * Sets whether the endpoint is sensitive.
+     *
+     * @param sensitive True it is sensitive, null for the default behaviour
+     */
     public void setSensitive(Boolean sensitive) {
-        this.sensitive = Optional.ofNullable(sensitive);
+        this.sensitive = sensitive;
     }
 }

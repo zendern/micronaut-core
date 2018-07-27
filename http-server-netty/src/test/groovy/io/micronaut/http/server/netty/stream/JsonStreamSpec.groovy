@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 original authors
+ * Copyright 2017-2018 original authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,13 +15,6 @@
  */
 package io.micronaut.http.server.netty.stream
 
-import io.micronaut.context.ApplicationContext
-import io.micronaut.http.HttpRequest
-import io.micronaut.http.HttpResponse
-import io.micronaut.http.MediaType
-import io.micronaut.http.annotation.Controller
-import io.micronaut.http.annotation.Get
-import io.micronaut.http.client.RxStreamingHttpClient
 import io.reactivex.Flowable
 import io.micronaut.context.ApplicationContext
 import io.micronaut.http.HttpRequest
@@ -41,7 +34,7 @@ import spock.lang.Specification
  */
 class JsonStreamSpec extends Specification {
 
-    @Shared @AutoCleanup EmbeddedServer embeddedServer = ApplicationContext.run(EmbeddedServer)
+    @Shared @AutoCleanup EmbeddedServer embeddedServer = ApplicationContext.run(EmbeddedServer, ['micronaut.server.serverHeader': 'JsonStreamSpec'])
 
     void "test json stream response content type"() {
         given:
@@ -52,7 +45,8 @@ class JsonStreamSpec extends Specification {
         expect:
         response.contentType.isPresent()
         response.contentType.get() == MediaType.APPLICATION_JSON_STREAM_TYPE
-
+        response.header("Server") == "JsonStreamSpec"
+        response.header("Date")
     }
 
     @Controller("/json/stream")

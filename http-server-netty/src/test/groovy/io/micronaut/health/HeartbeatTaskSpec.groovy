@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 original authors
+ * Copyright 2017-2018 original authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,8 +15,6 @@
  */
 package io.micronaut.health
 
-import io.micronaut.context.ApplicationContext
-import io.micronaut.context.event.ApplicationEventListener
 import io.micronaut.context.ApplicationContext
 import io.micronaut.context.event.ApplicationEventListener
 import io.micronaut.runtime.server.EmbeddedServer
@@ -39,7 +37,7 @@ class HeartbeatTaskSpec extends Specification {
                 'micronaut.application.name':'test'
         ])
         HeartbeatListener listener = embeddedServer.getApplicationContext().getBean(HeartbeatListener)
-        PollingConditions conditions = new PollingConditions(delay: 0.5)
+        PollingConditions conditions = new PollingConditions(timeout: 5, delay: 0.5)
 
         then:
         conditions.eventually {
@@ -53,10 +51,16 @@ class HeartbeatTaskSpec extends Specification {
 
     @Singleton
     static class HeartbeatListener implements ApplicationEventListener<HeartbeatEvent> {
-        HeartbeatEvent event
+        private HeartbeatEvent event
         @Override
-        void onApplicationEvent(HeartbeatEvent event) {
+        synchronized void onApplicationEvent(HeartbeatEvent event) {
+            println "Test Heartbeat listener $this received event $event"
             this.event = event
+        }
+
+        synchronized HeartbeatEvent getEvent() {
+            println "Test Heartbeat listener $this return event $event"
+            return event
         }
     }
 }

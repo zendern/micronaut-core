@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 original authors
+ * Copyright 2017-2018 original authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,37 +13,49 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.micronaut.discovery.consul.client.v1;
 
+import io.micronaut.context.annotation.Requires;
 import io.micronaut.core.async.publisher.Publishers;
-import io.micronaut.http.client.Client;
-import io.micronaut.core.async.publisher.Publishers;
-import io.micronaut.discovery.DiscoveryClient;
+import io.micronaut.core.naming.NameUtils;
 import io.micronaut.discovery.ServiceInstance;
 import io.micronaut.discovery.consul.ConsulConfiguration;
 import io.micronaut.discovery.consul.ConsulServiceInstance;
-import io.micronaut.http.annotation.Get;
 import io.micronaut.http.client.Client;
 import org.reactivestreams.Publisher;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.inject.Inject;
-import javax.validation.constraints.NotNull;
-import java.io.IOException;
-import java.net.InetAddress;
-import java.net.URI;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
 
 /**
- * Abstract implementation of {@link ConsulClient} that also implements {@link DiscoveryClient}
+ * Abstract implementation of {@link ConsulClient} that also implements {@link io.micronaut.discovery.DiscoveryClient}.
  *
  * @author Graeme Rocher
  * @since 1.0
  */
 @SuppressWarnings("unused")
 @Client(id = ConsulClient.SERVICE_ID, path = "/v1", configuration = ConsulConfiguration.class)
+@Requires(beans = ConsulConfiguration.class)
 public abstract class AbstractConsulClient implements ConsulClient {
+    private static final Logger LOG = LoggerFactory.getLogger(AbstractConsulClient.class);
 
-    @Inject protected ConsulConfiguration consulConfiguration = new ConsulConfiguration();
+    private ConsulConfiguration consulConfiguration = new ConsulConfiguration();
+
+    /**
+     * @param consulConfiguration The Consul configuration
+     */
+    @Inject
+    public void setConsulConfiguration(ConsulConfiguration consulConfiguration) {
+        if (consulConfiguration != null) {
+            this.consulConfiguration = consulConfiguration;
+        }
+    }
 
     @Override
     public String getDescription() {
@@ -52,12 +64,12 @@ public abstract class AbstractConsulClient implements ConsulClient {
 
     @Override
     public Publisher<List<ServiceInstance>> getInstances(String serviceId) {
-        if(SERVICE_ID.equals(serviceId)) {
+        serviceId = NameUtils.hyphenate(serviceId);
+        if (SERVICE_ID.equals(serviceId)) {
             return Publishers.just(
-                    Collections.singletonList(ServiceInstance.of(SERVICE_ID, consulConfiguration.getHost(), consulConfiguration.getPort()))
+                Collections.singletonList(ServiceInstance.of(SERVICE_ID, consulConfiguration.getHost(), consulConfiguration.getPort()))
             );
-        }
-        else {
+        } else {
             ConsulConfiguration.ConsulDiscoveryConfiguration discovery = consulConfiguration.getDiscovery();
             boolean passing = discovery.isPassing();
             Optional<String> datacenter = Optional.ofNullable(discovery.getDatacenters().get(serviceId));
@@ -73,10 +85,5 @@ public abstract class AbstractConsulClient implements ConsulClient {
                 return serviceInstances;
             });
         }
-    }
-
-    @Override
-    public void close() throws IOException {
-        // no-op.. will be closed by @Client
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 original authors
+ * Copyright 2017-2018 original authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.micronaut.http.client.scope;
 
 import io.micronaut.context.BeanContext;
@@ -21,19 +22,11 @@ import io.micronaut.context.LifeCycle;
 import io.micronaut.context.event.ApplicationEventListener;
 import io.micronaut.context.exceptions.DependencyInjectionException;
 import io.micronaut.context.scope.CustomScope;
-import io.micronaut.inject.BeanDefinition;
-import io.micronaut.inject.BeanIdentifier;
-import io.micronaut.inject.ParametrizedProvider;
-import io.micronaut.context.BeanContext;
-import io.micronaut.context.BeanResolutionContext;
-import io.micronaut.context.LifeCycle;
-import io.micronaut.context.event.ApplicationEventListener;
-import io.micronaut.context.exceptions.DependencyInjectionException;
-import io.micronaut.context.scope.CustomScope;
+import io.micronaut.core.annotation.AnnotationValue;
 import io.micronaut.core.type.Argument;
-import io.micronaut.core.util.ArrayUtils;
 import io.micronaut.core.util.StringUtils;
 import io.micronaut.http.client.*;
+import io.micronaut.http.client.loadbalance.FixedLoadBalancer;
 import io.micronaut.inject.BeanDefinition;
 import io.micronaut.inject.BeanIdentifier;
 import io.micronaut.inject.ParametrizedProvider;
@@ -43,11 +36,13 @@ import org.slf4j.LoggerFactory;
 
 import javax.inject.Provider;
 import javax.inject.Singleton;
-import java.util.*;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * A scope for injecting {@link io.micronaut.http.client.HttpClient} implementations
+ * A scope for injecting {@link io.micronaut.http.client.HttpClient} implementations.
  *
  * @author Graeme Rocher
  * @since 1.0
@@ -60,6 +55,10 @@ class ClientScope implements CustomScope<Client>, LifeCycle<ClientScope>, Applic
     private final LoadBalancerResolver loadBalancerResolver;
     private final BeanContext beanContext;
 
+    /**
+     * @param loadBalancerResolver The load balancer resolver
+     * @param beanContext          The bean context
+     */
     public ClientScope(LoadBalancerResolver loadBalancerResolver, BeanContext beanContext) {
         this.loadBalancerResolver = loadBalancerResolver;
         this.beanContext = beanContext;
@@ -77,42 +76,51 @@ class ClientScope implements CustomScope<Client>, LifeCycle<ClientScope>, Applic
 
     @Override
     public <T> T get(BeanResolutionContext resolutionContext, BeanDefinition<T> beanDefinition, BeanIdentifier identifier, Provider<T> provider) {
-        BeanResolutionContext.Segment segment = resolutionContext.getPath().currentSegment().orElseThrow(()->
+        BeanResolutionContext.Segment segment = resolutionContext.getPath().currentSegment().orElseThrow(() ->
             new IllegalStateException("@Client used in invalid location")
         );
         Argument argument = segment.getArgument();
-        Client annotation = argument.getAnnotation(Client.class);
-        if(annotation == null) {
+        AnnotationValue<Client> annotation = argument.getAnnotationMetadata().findAnnotation(Client.class).orElse(null);
+        if (annotation == null) {
             throw new DependencyInjectionException(resolutionContext, argument, "ClientScope called for injection point that is not annotated with @Client");
         }
-        if(!HttpClient.class.isAssignableFrom(beanDefinition.getBeanType())) {
+        if (!HttpClient.class.isAssignableFrom(argument.getType())) {
             throw new DependencyInjectionException(resolutionContext, argument, "@Client used on type that is not an HttpClient");
         }
-        if(!(provider instanceof ParametrizedProvider)) {
+        if (!(provider instanceof ParametrizedProvider)) {
             throw new DependencyInjectionException(resolutionContext, argument, "ClientScope called with invalid bean provider");
         }
-        String[] value = annotation.value();
-        if(ArrayUtils.isEmpty(value) || StringUtils.isEmpty(value[0])) {
-            String serviceId = annotation.id();
-            if(StringUtils.isEmpty(serviceId)) {
-                throw new DependencyInjectionException(resolutionContext, argument, "No value specified for @Client");
-            }
-            else {
-                value = new String[] { serviceId };
-            }
-        }
-
-        String[] finalValue = value;
+        String value = annotation.getValue(String.class).orElseThrow(() ->
+                new DependencyInjectionException(resolutionContext, argument, "No value specified for @Client")
+        );
         LoadBalancer loadBalancer = loadBalancerResolver.resolve(value)
-                                                                        .orElseThrow(()->
-                                                                            new DependencyInjectionException(resolutionContext, argument, "Invalid service reference ["+ArrayUtils.toString((Object[]) finalValue)+"] specified to @Client")
-                                                                        );
+            .orElseThrow(() ->
+                new DependencyInjectionException(resolutionContext, argument, "Invalid service reference [" + value + "] specified to @Client")
+            );
+
         //noinspection unchecked
         return (T) clients.computeIfAbsent(new ClientKey(identifier, value), clientKey -> {
-            HttpClientConfiguration configuration = beanContext.getBean(annotation.configuration());
-            HttpClient httpClient = (HttpClient) ((ParametrizedProvider<T>) provider).get(loadBalancer, configuration);
-            if(httpClient instanceof DefaultHttpClient) {
-                ((DefaultHttpClient)httpClient).setClientIdentifiers(finalValue);
+            String contextPath = null;
+            String annotationPath = annotation.get("path", String.class).orElse(null);
+            if (StringUtils.isNotEmpty(annotationPath)) {
+                contextPath = annotationPath;
+            } else if (StringUtils.isNotEmpty(value) && value.startsWith("/")) {
+                contextPath = value;
+            } else {
+                if (loadBalancer instanceof FixedLoadBalancer) {
+                    contextPath = ((FixedLoadBalancer) loadBalancer).getUrl().getPath();
+                }
+            }
+            Class<?> configurationClass = annotation.get("configuration", Class.class).orElse(HttpClientConfiguration.class);
+            Object bean = beanContext.getBean(configurationClass);
+
+            if (!(bean instanceof HttpClientConfiguration)) {
+                throw new IllegalStateException("Referenced HTTP client configuration class must be an instance of HttpClientConfiguration for injection point: " + segment);
+            }
+            HttpClientConfiguration configuration = (HttpClientConfiguration) bean;
+            HttpClient httpClient = (HttpClient) ((ParametrizedProvider<T>) provider).get(loadBalancer, configuration, contextPath);
+            if (httpClient instanceof DefaultHttpClient) {
+                ((DefaultHttpClient) httpClient).setClientIdentifiers(value);
             }
             return httpClient;
         });
@@ -129,7 +137,7 @@ class ClientScope implements CustomScope<Client>, LifeCycle<ClientScope>, Applic
             try {
                 httpClient.close();
             } catch (Throwable e) {
-                if(LOG.isWarnEnabled()) {
+                if (LOG.isWarnEnabled()) {
                     LOG.warn("Error shutting down HTTP client: " + e.getMessage(), e);
                 }
             }
@@ -143,29 +151,34 @@ class ClientScope implements CustomScope<Client>, LifeCycle<ClientScope>, Applic
         refresh();
     }
 
+    /**
+     * Client key.
+     */
     private static class ClientKey {
         final BeanIdentifier identifier;
-        final String[] value;
+        final String value;
 
-        public ClientKey(BeanIdentifier identifier, String[] value) {
+        public ClientKey(BeanIdentifier identifier, String value) {
             this.identifier = identifier;
             this.value = value;
         }
 
         @Override
         public boolean equals(Object o) {
-            if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
             ClientKey clientKey = (ClientKey) o;
             return Objects.equals(identifier, clientKey.identifier) &&
-                    Arrays.equals(value, clientKey.value);
+                    Objects.equals(value, clientKey.value);
         }
 
         @Override
         public int hashCode() {
-            int result = identifier.hashCode();
-            result = 31 * result + Arrays.hashCode(value);
-            return result;
+            return Objects.hash(identifier, value);
         }
     }
 }

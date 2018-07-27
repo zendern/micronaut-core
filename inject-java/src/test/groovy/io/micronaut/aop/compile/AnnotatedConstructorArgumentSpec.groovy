@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 original authors
+ * Copyright 2017-2018 original authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,17 +15,12 @@
  */
 package io.micronaut.aop.compile
 
+import io.micronaut.aop.simple.Mutating
 import io.micronaut.context.ApplicationContext
+import io.micronaut.context.annotation.Type
 import io.micronaut.inject.AbstractTypeElementSpec
 import io.micronaut.inject.BeanDefinition
 import io.micronaut.inject.BeanFactory
-import io.micronaut.context.ApplicationContext
-import io.micronaut.context.DefaultBeanContext
-import io.micronaut.inject.AbstractTypeElementSpec
-import io.micronaut.inject.BeanDefinition
-import io.micronaut.inject.BeanFactory
-import io.micronaut.inject.writer.BeanDefinitionVisitor
-import spock.lang.Specification
 
 /**
  * @author graemerocher
@@ -62,6 +57,11 @@ class MyBean {
         !beanDefinition.isAbstract()
         beanDefinition != null
         beanDefinition.injectedFields.size() == 0
+        beanDefinition.constructor.arguments.size() == 3
+        beanDefinition.constructor.arguments[0].name == 'val'
+        beanDefinition.constructor.arguments[1].name == 'beanContext'
+        beanDefinition.constructor.arguments[2].name == 'interceptors'
+        beanDefinition.constructor.arguments[2].synthesize(Type.class).value()[0] == Mutating
 
         when:
         def context = ApplicationContext.run('foo.bar':'test')

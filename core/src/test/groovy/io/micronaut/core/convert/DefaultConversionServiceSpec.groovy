@@ -1,14 +1,28 @@
+/*
+ * Copyright 2017-2018 original authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package io.micronaut.core.convert
 
-import io.micronaut.core.convert.format.Format
-import io.micronaut.core.convert.format.ReadableBytes
-import io.micronaut.core.type.Argument
 import io.micronaut.core.convert.format.Format
 import io.micronaut.core.convert.format.ReadableBytes
 import io.micronaut.core.type.Argument
 import spock.lang.Specification
 import spock.lang.Unroll
 import java.lang.reflect.Field
+import java.text.SimpleDateFormat
 import java.time.DayOfWeek
 
 /**
@@ -63,34 +77,5 @@ class DefaultConversionServiceSpec extends Specification {
 
     }
 
-    @Format('yyyy/mm/dd')
-    private Date today
 
-    void "test conversion service with formatting and date"() {
-        given:
-        ConversionService conversionService = new DefaultConversionService()
-        Field field = getClass().getDeclaredField("today")
-        expect:
-        conversionService.convert(sourceObject, targetType, ConversionContext.of(Argument.of(field, "today", null), Locale.ENGLISH)).get() == result
-
-        where:
-        sourceObject | targetType | result
-        "1999/01/01" | Date       | Date.parse("yyyy/mm/dd", "1999/01/01")
-    }
-
-
-    @ReadableBytes
-    private int maxSize
-
-    void "test conversion service with formatting for bytes"() {
-        given:
-        ConversionService conversionService = new DefaultConversionService()
-        Field field = getClass().getDeclaredField("maxSize")
-        expect:
-        conversionService.convert(sourceObject, targetType, ConversionContext.of(Argument.of(field, "maxSize", null), Locale.ENGLISH)).get() == result
-
-        where:
-        sourceObject | targetType | result
-        "1MB"        | Integer    | 1048576
-    }
 }

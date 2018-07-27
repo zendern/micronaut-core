@@ -1,22 +1,21 @@
 /*
- * Copyright 2017 original authors
- * 
+ * Copyright 2017-2018 original authors
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  * http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License. 
+ * limitations under the License.
  */
+
 package io.micronaut.http.server;
 
-import io.micronaut.context.annotation.ConfigurationProperties;
-import io.micronaut.http.server.cors.CorsOriginConfiguration;
 import io.micronaut.context.annotation.ConfigurationProperties;
 import io.micronaut.core.convert.format.ReadableBytes;
 import io.micronaut.core.util.Toggleable;
@@ -28,21 +27,26 @@ import java.io.File;
 import java.nio.charset.Charset;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
-import java.util.*;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Optional;
 
 /**
- * <p>A base {@link ConfigurationProperties} for servers</p>
+ * <p>A base {@link ConfigurationProperties} for servers.</p>
  *
  * @author Graeme Rocher
  * @since 1.0
  */
-@ConfigurationProperties(value = "micronaut.server", cliPrefix = "")
-public class HttpServerConfiguration  {
+@ConfigurationProperties(value = HttpServerConfiguration.PREFIX, cliPrefix = "")
+public class HttpServerConfiguration {
 
-    public static final String LOCALHOST = "localhost";
+    /**
+     * The prefix used for configuration.
+     */
 
-    private final ApplicationConfiguration applicationConfiguration;
-    private Charset defaultCharset;
+    public static final String PREFIX = "micronaut.server";
+
     protected int port = -1; // default to random port
     protected Optional<String> host = Optional.empty();
     protected Optional<Integer> readTimeout;
@@ -51,17 +55,29 @@ public class HttpServerConfiguration  {
     protected Duration readIdleTime = Duration.of(60, ChronoUnit.SECONDS);
     protected Duration writeIdleTime = Duration.of(60, ChronoUnit.SECONDS);
     protected Duration idleTime = Duration.of(60, ChronoUnit.SECONDS);
-    protected MultipartConfiguration multipart =  new MultipartConfiguration();
+    protected MultipartConfiguration multipart = new MultipartConfiguration();
     protected CorsConfiguration cors = new CorsConfiguration();
+    protected Optional<String> serverHeader = Optional.empty();
+    protected boolean dateHeader = true;
 
+    private final ApplicationConfiguration applicationConfiguration;
+    private Charset defaultCharset;
+
+    /**
+     * Default constructor.
+     */
     public HttpServerConfiguration() {
         this.applicationConfiguration = new ApplicationConfiguration();
     }
 
+    /**
+     * @param applicationConfiguration The application configuration
+     */
     @Inject
     public HttpServerConfiguration(ApplicationConfiguration applicationConfiguration) {
-        if(applicationConfiguration != null)
+        if (applicationConfiguration != null) {
             this.defaultCharset = applicationConfiguration.getDefaultCharset();
+        }
 
         this.applicationConfiguration = applicationConfiguration;
     }
@@ -80,19 +96,22 @@ public class HttpServerConfiguration  {
         return defaultCharset;
     }
 
+    /**
+     * @param defaultCharset The default charset to use
+     */
     public void setDefaultCharset(Charset defaultCharset) {
         this.defaultCharset = defaultCharset;
     }
 
     /**
-     * The default server port
+     * @return The default server port
      */
     public int getPort() {
         return port;
     }
 
     /**
-     * The default host
+     * @return The default host
      */
     public Optional<String> getHost() {
         return host;
@@ -115,7 +134,9 @@ public class HttpServerConfiguration  {
     /**
      * @return Configuration for CORS
      */
-    public CorsConfiguration getCors() { return cors; }
+    public CorsConfiguration getCors() {
+        return cors;
+    }
 
     /**
      * @return The maximum request body size
@@ -146,7 +167,21 @@ public class HttpServerConfiguration  {
     }
 
     /**
-     * Configuration for multipart handling
+     * @return The optional server header value
+     */
+    public Optional<String> getServerHeader() {
+        return serverHeader;
+    }
+
+    /**
+     * @return True if the date header should be set
+     */
+    public boolean isDateHeader() {
+        return dateHeader;
+    }
+
+    /**
+     * Configuration for multipart handling.
      */
     @ConfigurationProperties("multipart")
     public static class MultipartConfiguration implements Toggleable {
@@ -186,6 +221,9 @@ public class HttpServerConfiguration  {
         }
     }
 
+    /**
+     * Configuration for CORS.
+     */
     @ConfigurationProperties("cors")
     public static class CorsConfiguration implements Toggleable {
 
@@ -216,5 +254,4 @@ public class HttpServerConfiguration  {
             return configurations;
         }
     }
-
 }

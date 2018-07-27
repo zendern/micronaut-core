@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 original authors
+ * Copyright 2017-2018 original authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,17 +13,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.micronaut.runtime.server.event;
 
+import io.micronaut.runtime.event.ApplicationShutdownEvent;
 import io.micronaut.runtime.server.EmbeddedServer;
 
 /**
- * Event fired when the {@link EmbeddedServer} shuts down
+ * Event fired when the {@link EmbeddedServer} shuts down.
  *
  * @author graemerocher
  * @since 1.0
  */
-public class ServerShutdownEvent extends AbstractServerApplicationEvent {
+public class ServerShutdownEvent extends ApplicationShutdownEvent {
+
     /**
      * Constructs a prototypical Event.
      *
@@ -32,5 +35,10 @@ public class ServerShutdownEvent extends AbstractServerApplicationEvent {
      */
     public ServerShutdownEvent(EmbeddedServer embeddedServer) {
         super(embeddedServer);
+    }
+
+    @Override
+    public EmbeddedServer getSource() {
+        return (EmbeddedServer) super.getSource();
     }
 }

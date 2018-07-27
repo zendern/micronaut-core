@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 original authors
+ * Copyright 2017-2018 original authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,26 +13,54 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.micronaut.configuration.jdbc.hikari;
 
-import com.zaxxer.hikari.HikariDataSource;
 import io.micronaut.context.annotation.Bean;
 import io.micronaut.context.annotation.EachBean;
 import io.micronaut.context.annotation.Factory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import javax.annotation.PreDestroy;
+import javax.sql.DataSource;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
- * Creates a Hikari data source for each configuration bean
+ * Creates a Hikari data source for each configuration bean.
  *
  * @author James Kleeh
  * @since 1.0
  */
 @Factory
-public class DatasourceFactory {
+public class DatasourceFactory implements AutoCloseable {
 
+    private static final Logger LOG = LoggerFactory.getLogger(DatasourceFactory.class);
+    private List<HikariUrlDataSource> dataSources = new ArrayList<>(2);
+
+    /**
+     * @param datasourceConfiguration A {@link DatasourceConfiguration}
+     * @return A {@link HikariUrlDataSource}
+     */
     @EachBean(DatasourceConfiguration.class)
-    @Bean(preDestroy = "close")
-    public HikariDataSource dataSource(DatasourceConfiguration datasourceConfiguration) {
-        return new HikariUrlDataSource(datasourceConfiguration);
+    public DataSource dataSource(DatasourceConfiguration datasourceConfiguration) {
+        HikariUrlDataSource ds = new HikariUrlDataSource(datasourceConfiguration);
+        dataSources.add(ds);
+        return ds;
+    }
+
+    @Override
+    @PreDestroy
+    public void close() {
+        for (HikariUrlDataSource dataSource : dataSources) {
+            try {
+                dataSource.close();
+            } catch (Exception e) {
+                if (LOG.isWarnEnabled()) {
+                    LOG.warn("Error closing data source [" + dataSource + "]: " + e.getMessage(), e);
+                }
+            }
+        }
     }
 }

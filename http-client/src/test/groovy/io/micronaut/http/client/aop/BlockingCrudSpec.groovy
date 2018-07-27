@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 original authors
+ * Copyright 2017-2018 original authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,12 +15,8 @@
  */
 package io.micronaut.http.client.aop
 
-import io.micronaut.context.ApplicationContext
-import io.micronaut.http.annotation.Controller
-import io.micronaut.http.annotation.Delete
-import io.micronaut.http.annotation.Get
-import io.micronaut.http.annotation.Patch
-import io.micronaut.http.annotation.Post
+import io.micronaut.http.HttpResponse
+import io.micronaut.http.HttpStatus
 import io.micronaut.context.ApplicationContext
 import io.micronaut.http.annotation.Controller
 import io.micronaut.http.annotation.Delete
@@ -30,11 +26,9 @@ import io.micronaut.http.annotation.Post
 import io.micronaut.http.client.Client
 import io.micronaut.runtime.server.EmbeddedServer
 import spock.lang.AutoCleanup
-import spock.lang.Ignore
 import spock.lang.Shared
 import spock.lang.Specification
 
-import javax.inject.Singleton
 import java.util.concurrent.atomic.AtomicLong
 
 /**
@@ -45,8 +39,24 @@ import java.util.concurrent.atomic.AtomicLong
  */
 class BlockingCrudSpec extends Specification {
 
-    @Shared @AutoCleanup ApplicationContext context = ApplicationContext.run()
-    @Shared EmbeddedServer embeddedServer = context.getBean(EmbeddedServer).start()
+    @Shared
+    @AutoCleanup
+    ApplicationContext context = ApplicationContext.run()
+
+    @Shared
+    @AutoCleanup
+    EmbeddedServer embeddedServer = context.getBean(EmbeddedServer).start()
+
+    void "test configured client"() {
+        given:
+        ApplicationContext anotherContext = ApplicationContext.run(
+                'book.service.uri':"${embeddedServer.URL}/blocking"
+        )
+        ConfiguredBookClient bookClient = anotherContext.getBean(ConfiguredBookClient)
+
+        expect:
+        bookClient.list().size() == 0
+    }
 
     void "test CRUD operations on generated client that returns blocking responses"() {
         given:
@@ -75,6 +85,14 @@ class BlockingCrudSpec extends Specification {
         book != null
         book.title == "The Stand"
         book.id == 1
+
+        when:'the full response is resolved'
+        HttpResponse<Book> bookAndResponse = client.getResponse(book.id)
+
+        then:"The response is valid"
+        bookAndResponse.status() == HttpStatus.OK
+        bookAndResponse.body().title == "The Stand"
+
 
         when:
         book = client.update(book.id, "The Shining")
@@ -139,8 +157,11 @@ class BlockingCrudSpec extends Specification {
     static interface BookClient extends BookApi {
     }
 
+    @Client('${book.service.uri}/books')
+    static interface ConfiguredBookClient extends BookApi {
+    }
+
     @Controller("/blocking/books")
-    @Singleton
     static class BookController implements BookApi {
 
         Map<Long, Book> books = new LinkedHashMap<>()
@@ -149,6 +170,15 @@ class BlockingCrudSpec extends Specification {
         @Override
         Book get(Long id) {
             return books.get(id)
+        }
+
+        @Override
+        HttpResponse<Book> getResponse(Long id) {
+            def book = books.get(id)
+            if(book) {
+                return HttpResponse.ok(book)
+            }
+            return HttpResponse.notFound()
         }
 
         @Override
@@ -182,6 +212,9 @@ class BlockingCrudSpec extends Specification {
 
         @Get("/{id}")
         Book get(Long id)
+
+        @Get("/res/{id}")
+        HttpResponse<Book> getResponse(Long id)
 
         @Get('/')
         List<Book> list()

@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 original authors
+ * Copyright 2017-2018 original authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,122 +13,51 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.micronaut.core.io.scan;
 
-import io.micronaut.core.util.StringUtils;
 import io.micronaut.core.io.ResourceLoader;
-import io.micronaut.core.util.StringUtils;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.net.URL;
-import java.util.Enumeration;
-import java.util.Optional;
-import java.util.stream.Stream;
+import javax.annotation.Nullable;
 
 /**
- * Loads resources from the classpath
+ * Abstraction to load resources from the the classpath.
  *
  * @author James Kleeh
- * @since 1.0
+ * @author Graeme Rocher
  */
-public class ClassPathResourceLoader implements ResourceLoader {
-
-    private final ClassLoader classLoader;
-    private final String basePath;
+public interface ClassPathResourceLoader extends ResourceLoader {
+    /**
+     * @return The underlying classloader used by this {@link ClassPathResourceLoader}
+     */
+    ClassLoader getClassLoader();
 
     /**
-     * Default constructor
+     * @param path The path to a resource including a prefix
+     *             appended by a colon. Ex (classpath:, file:)
+     * @return Whether the given resource loader supports the prefix
+     */
+    @Override
+    default boolean supportsPrefix(String path) {
+        return path.startsWith("classpath:");
+    }
+
+    /**
+     * Return the default {@link ClassPathResourceLoader} for the given class loader.
      *
-     * @param classLoader The class loader for loading resources
+     * @param classLoader The classloader
+     * @return The default loader
      */
-    public ClassPathResourceLoader(ClassLoader classLoader) {
-        this(classLoader, null);
-    }
-
-    /**
-     * Use when resources should have a standard base path
-     *
-     * @param classLoader The class loader for loading resources
-     * @param basePath The path to look for resources under
-     */
-    public ClassPathResourceLoader(ClassLoader classLoader, String basePath) {
-        this.classLoader = classLoader;
-        this.basePath = normalize(basePath);
-    }
-
-    /**
-     * Obtains a resource as a stream
-     *
-     * @param path The path
-     * @return An optional resource
-     */
-    public Optional<InputStream> getResourceAsStream(String path) {
-        return Optional.ofNullable(classLoader.getResourceAsStream(prefixPath(path)));
-    }
-
-    /**
-     * Obtains a resource URL
-     *
-     * @param path The path
-     * @return An optional resource
-     */
-    public Optional<URL> getResource(String path) {
-        return Optional.ofNullable(classLoader.getResource(prefixPath(path)));
-    }
-
-    /**
-     * Obtains a stream of resource URLs
-     *
-     * @param path The path
-     * @return A resource stream
-     */
-    public Stream<URL> getResources(String path) {
-        Enumeration<URL> all;
-        try {
-            all = classLoader.getResources(prefixPath(path));
-        } catch (IOException e) {
-            return Stream.empty();
+    static ClassPathResourceLoader defaultLoader(@Nullable ClassLoader classLoader) {
+        if (classLoader == null) {
+            classLoader = Thread.currentThread().getContextClassLoader();
         }
-        Stream.Builder<URL> builder = Stream.<URL>builder();
-        while (all.hasMoreElements()) {
-            URL url = all.nextElement();
-            builder.accept(url);
+        if (classLoader == null) {
+            classLoader = ClassPathResourceLoader.class.getClassLoader();
         }
-        return builder.build();
-    }
-
-    /**
-     * @return The class loader used to retrieve resources
-     */
-    public ClassLoader getClassLoader() {
-        return classLoader;
-    }
-
-    private String normalize(String path) {
-        if (path != null) {
-            if (path.startsWith("/")) {
-                path = path.substring(1);
-            }
-            if (!path.endsWith("/") && StringUtils.isNotEmpty(path)) {
-                path = path + "/";
-            }
+        if (classLoader == null) {
+            classLoader = ClassLoader.getSystemClassLoader();
         }
-        return path;
-    }
-
-    private String prefixPath(String path) {
-        if (path.startsWith("classpath:")) {
-            path = path.substring(10);
-        }
-        if (basePath != null) {
-            if (path.startsWith("/")) {
-                return basePath + path.substring(1);
-            } else {
-                return basePath + path;
-            }
-        } else {
-            return path;
-        }
+        return new DefaultClassPathResourceLoader(classLoader);
     }
 }

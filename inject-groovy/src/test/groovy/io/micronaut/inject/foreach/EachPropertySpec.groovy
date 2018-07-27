@@ -1,17 +1,17 @@
 /*
- * Copyright 2017 original authors
- * 
+ * Copyright 2017-2018 original authors
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  * http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License. 
+ * limitations under the License.
  */
 package io.micronaut.inject.foreach
 
@@ -24,15 +24,6 @@ import io.micronaut.context.annotation.Factory
 import io.micronaut.context.env.MapPropertySource
 import io.micronaut.context.env.PropertySource
 import io.micronaut.inject.qualifiers.Qualifiers
-import io.micronaut.context.ApplicationContext
-import io.micronaut.context.DefaultApplicationContext
-import io.micronaut.context.annotation.ConfigurationProperties
-import io.micronaut.context.annotation.EachBean
-import io.micronaut.context.annotation.Factory
-import io.micronaut.context.annotation.EachProperty
-import io.micronaut.context.env.MapPropertySource
-import io.micronaut.context.env.PropertySource
-import io.micronaut.inject.qualifiers.Qualifiers
 import spock.lang.Specification
 
 /**
@@ -40,6 +31,58 @@ import spock.lang.Specification
  * @since 1.0
  */
 class EachPropertySpec extends Specification {
+    void "test configuration properties binding for similar names" () {
+        given:
+        ApplicationContext applicationContext = new DefaultApplicationContext("test")
+        applicationContext.environment.addPropertySource(MapPropertySource.of(
+                'test',
+                [ 'foo.bar.two-public.port':'8989',
+                  'foo.bar.two-public.anotherPort':'9990',
+                  'foo.bar.two-public.intList':"7,8,9",
+                  'foo.bar.two-public.stringList':"1,2",
+                  'foo.bar.two-public.inner.enabled':'false',
+                  'foo.bar.two-public.flags.two':'2',
+                  'foo.bar.two-public.flags.three':'3',
+                  'foo.bar.two-public.urlList':"http://test.com, http://test2.com",
+                  'foo.bar.two-public.urlList2':["http://test.com", "http://test2.com"],
+                  'foo.bar.two-public.url':'http://test.com',
+
+                 'foo.bar.one.port':'8080',
+                 'foo.bar.one.anotherPort':'9090',
+                 'foo.bar.one.intList':"1,2,3",
+                 'foo.bar.one.stringList':"1,2",
+                 'foo.bar.one.inner.enabled':'true',
+                 'foo.bar.one.flags.one':'1',
+                 'foo.bar.one.flags.two':'2',
+                 'foo.bar.one.urlList':"http://test.com, http://test2.com",
+                 'foo.bar.one.urlList2':["http://test.com", "http://test2.com"],
+                 'foo.bar.one.url':'http://test.com',
+
+                 'foo.bar.two.port':'8888',
+                 'foo.bar.two.anotherPort':'9999',
+                 'foo.bar.two.intList':"4,5,6",
+                 'foo.bar.two.stringList':"1,2",
+                 'foo.bar.two.inner.enabled':'false',
+                 'foo.bar.two.flags.two':'2',
+                 'foo.bar.two.flags.three':'3',
+                 'foo.bar.two.urlList':"http://test.com, http://test2.com",
+                 'foo.bar.two.urlList2':["http://test.com", "http://test2.com"],
+                 'foo.bar.two.url':'http://test.com']
+        ))
+
+        applicationContext.start()
+        MyConfiguration defaultConf = applicationContext.getBean(MyConfiguration)
+        MyConfiguration one = applicationContext.getBean(MyConfiguration, Qualifiers.byName("one"))
+        MyConfiguration two = applicationContext.getBean(MyConfiguration, Qualifiers.byName("two"))
+        MyConfiguration twoPublic = applicationContext.getBean(MyConfiguration, Qualifiers.byName("two-public"))
+
+        expect:
+        defaultConf.port == 8989
+        one.port == 8080
+        two.port == 8888
+        twoPublic.port == 8989
+    }
+
     void "test configuration properties binding"() {
         given:
         ApplicationContext applicationContext = new DefaultApplicationContext("test")

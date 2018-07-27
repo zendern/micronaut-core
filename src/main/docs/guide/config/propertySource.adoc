@@ -14,21 +14,10 @@ Micronaut by default contains `PropertySourceLoader` implementations that load p
 
 * Command line arguments
 * Properties from `SPRING_APPLICATION_JSON` (for Spring compatibility)
-* Properties from `PARTICLE_APPLICATION_JSON`
+* Properties from `MICRONAUT_APPLICATION_JSON`
 * Java System Properties
 * OS environment variables
 * Enviroment-specific properties from `application-{environment}.{extension}` (Either `.properties`, `.json`, `.yml` or `.groovy` property formats supported)
 * Application-specific properties from `application.{extension}` (Either `.properties`, `.json`, `.yml` or `.groovy` property formats supported)
 
 
-To use `application.yml` you will need to include http://mavenrepository.com/artifact/org.yaml/snakeyaml[SnakeYAML] as a `runtime` dependency.
-
-[source, groovy]
-----
-dependencies {
-    ...
-    ..
-    .
-    runtime 'org.yaml:snakeyaml:1.19'
-}
-----

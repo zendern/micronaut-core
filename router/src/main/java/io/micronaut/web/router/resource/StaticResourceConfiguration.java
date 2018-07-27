@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 original authors
+ * Copyright 2017-2018 original authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,15 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.micronaut.web.router.resource;
 
 import io.micronaut.context.annotation.ConfigurationProperties;
 import io.micronaut.context.exceptions.ConfigurationException;
 import io.micronaut.core.io.ResourceLoader;
-import io.micronaut.core.util.Toggleable;
-import io.micronaut.context.annotation.ConfigurationProperties;
-import io.micronaut.context.exceptions.ConfigurationException;
-import io.micronaut.core.io.ResourceLoader;
+import io.micronaut.core.io.ResourceResolver;
 import io.micronaut.core.util.Toggleable;
 
 import java.util.ArrayList;
@@ -30,7 +28,7 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * Stores configuration for the loading of static resources
+ * Stores configuration for the loading of static resources.
  *
  * @author James Kleeh
  * @since 1.0
@@ -38,29 +36,48 @@ import java.util.Optional;
 @ConfigurationProperties(StaticResourceConfiguration.PREFIX)
 public class StaticResourceConfiguration implements Toggleable {
 
-    public static final String PREFIX = "router.static.resources";
+    /**
+     * The prefix for static resources configuration.
+     */
+    public static final String PREFIX = "micronaut.router.static.resources";
 
     protected boolean enabled = false;
     protected List<String> paths = Collections.emptyList();
     protected String mapping = "/**";
 
+    private final ResourceResolver resourceResolver;
+
+    /**
+     * @param resourceResolver The {@linkplain ResourceResolver}
+     */
+    public StaticResourceConfiguration(ResourceResolver resourceResolver) {
+        this.resourceResolver = resourceResolver;
+    }
+
+    /**
+     * @return Enable the static resources router
+     */
     @Override
     public boolean isEnabled() {
         return enabled;
     }
 
+    /**
+     * @return The list of {@link ResourceLoader} available for the path
+     */
     public List<ResourceLoader> getResourceLoaders() {
-        List<ResourceLoader> loaders = new ArrayList<>(paths.size());
         if (enabled) {
-            for(String path: paths) {
-                Optional<ResourceLoader> loader = ResourceLoader.forPath(path, this.getClass().getClassLoader());
+            List<ResourceLoader> loaders = new ArrayList<>(paths.size());
+            for (String path : paths) {
+                Optional<ResourceLoader> loader = resourceResolver.getLoaderForBasePath(path);
                 if (loader.isPresent()) {
                     loaders.add(loader.get());
                 } else {
                     throw new ConfigurationException("Unrecognizable resource path: " + path);
                 }
             }
+            return loaders;
         }
-        return loaders;
+        return Collections.emptyList();
     }
 }

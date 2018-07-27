@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 original authors
+ * Copyright 2017-2018 original authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,6 +24,8 @@ public class Headline {
     private String title;
     private String description;
 
+    public Headline() { }
+
     public Headline(String title, String description) {
         this.title = title;
         this.description = description;
@@ -35,6 +37,14 @@ public class Headline {
 
     public String getDescription() {
         return description;
+    }
+
+    public void setTitle(String title) {
+        this.title = title;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
     }
 }
 // end::class[]

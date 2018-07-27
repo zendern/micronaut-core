@@ -1,4 +1,4 @@
-The previous section introduced the notion of Reactive programming using RxJava 2.x and micronaut.
+The previous section introduced the notion of Reactive programming using RxJava 2.x and Micronaut.
 
 Micronaut supports returning common reactive types such as rx:Single[] or rx:Observable[] (or the `Mono` type from Reactor 3.x), an instance of rs:Publisher[] or jdk:java.util.concurrent.CompletableFuture[] from any controller method.
 
@@ -38,6 +38,6 @@ To summarize, the following table illustrates some common response types and the
 |`Book show()`
 |===
 
-NOTE: When returning a Reactive type, the type of reactive type has an impact on the response returned. For example, when returning a rx:Flowable[], Micronaut cannot know the size of the response, so `Transfer-Encoding` type of `Chunked` is used. Whilst for types that emit a single result such as `rx:Single[]` the `Content-Length` header will be populated.
+NOTE: When returning a Reactive type, the type of reactive type has an impact on the response returned. For example, when returning a rx:Flowable[], Micronaut can not know the size of the response, so `Transfer-Encoding` type of `Chunked` is used. Whilst for types that emit a single result such as `rx:Single[]` the `Content-Length` header will be populated.
 
 

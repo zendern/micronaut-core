@@ -1,29 +1,22 @@
 /*
- * Copyright 2017 original authors
- * 
+ * Copyright 2017-2018 original authors
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  * http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License. 
+ * limitations under the License.
  */
+
 package io.micronaut.runtime.http.codec;
 
-import io.micronaut.context.annotation.Value;
-import io.micronaut.core.convert.ConversionService;
-import io.micronaut.core.io.IOUtils;
-import io.micronaut.core.io.buffer.ByteBuffer;
-import io.micronaut.core.io.buffer.ByteBufferFactory;
-import io.micronaut.core.type.Argument;
-import io.micronaut.http.MediaType;
-import io.micronaut.http.codec.CodecException;
-import io.micronaut.http.codec.MediaTypeCodec;
+import io.micronaut.codec.CodecConfiguration;
 import io.micronaut.context.annotation.Value;
 import io.micronaut.core.convert.ConversionService;
 import io.micronaut.core.io.IOUtils;
@@ -35,15 +28,21 @@ import io.micronaut.http.codec.CodecException;
 import io.micronaut.http.codec.MediaTypeCodec;
 import io.micronaut.runtime.ApplicationConfiguration;
 
+import javax.annotation.Nullable;
 import javax.inject.Inject;
+import javax.inject.Named;
 import javax.inject.Singleton;
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
-import java.util.Optional;
+import java.util.*;
 
 /**
- * A codec that handles {@link MediaType#TEXT_PLAIN}
+ * A codec that handles {@link MediaType#TEXT_PLAIN}.
  *
  * @author Graeme Rocher
  * @since 1.0
@@ -51,33 +50,53 @@ import java.util.Optional;
 @Singleton
 public class TextPlainCodec implements MediaTypeCodec {
 
-    private final Charset defaultCharset;
+    public static final String CONFIGURATION_QUALIFIER = "text";
 
-    @Inject public TextPlainCodec(@Value("${" + ApplicationConfiguration.DEFAULT_CHARSET + "}") Optional<Charset> defaultCharset) {
+    private final Charset defaultCharset;
+    private final List<MediaType> additionalTypes;
+
+    /**
+     * @param defaultCharset      The default charset used for serialization and deserialization
+     * @param codecConfiguration  The configuration for the codec
+     */
+    @Inject
+    public TextPlainCodec(@Value("${" + ApplicationConfiguration.DEFAULT_CHARSET + "}") Optional<Charset> defaultCharset,
+                          @Named(CONFIGURATION_QUALIFIER) @Nullable CodecConfiguration codecConfiguration) {
         this.defaultCharset = defaultCharset.orElse(StandardCharsets.UTF_8);
+        if (codecConfiguration != null) {
+            this.additionalTypes = codecConfiguration.getAdditionalTypes();
+        } else {
+            this.additionalTypes = Collections.emptyList();
+        }
     }
 
+    /**
+     * @param defaultCharset The default charset used for serialization and deserialization
+     */
     public TextPlainCodec(Charset defaultCharset) {
         this.defaultCharset = defaultCharset != null ? defaultCharset : StandardCharsets.UTF_8;
+        this.additionalTypes = Collections.emptyList();
     }
 
     @Override
-    public MediaType getMediaType() {
-        return MediaType.TEXT_PLAIN_TYPE;
+    public Collection<MediaType> getMediaTypes() {
+        List<MediaType> mediaTypes = new ArrayList<>();
+        mediaTypes.add(MediaType.TEXT_PLAIN_TYPE);
+        mediaTypes.addAll(additionalTypes);
+        return mediaTypes;
     }
 
     @Override
     public <T> T decode(Argument<T> type, ByteBuffer<?> buffer) throws CodecException {
         String text = buffer.toString(defaultCharset);
-        return ConversionService.SHARED.convert(
-                text,
-                type
-        ).orElseThrow(()-> new CodecException("Cannot decode byte buffer with value ["+text+"] to type: " + type));
+        return ConversionService.SHARED
+            .convert(text, type)
+            .orElseThrow(() -> new CodecException("Cannot decode byte buffer with value [" + text + "] to type: " + type));
     }
 
     @Override
     public <T> T decode(Argument<T> type, InputStream inputStream) throws CodecException {
-        if(CharSequence.class.isAssignableFrom(type.getType())) {
+        if (CharSequence.class.isAssignableFrom(type.getType())) {
             try {
                 return (T) IOUtils.readText(new BufferedReader(new InputStreamReader(inputStream, defaultCharset)));
             } catch (IOException e) {
@@ -106,7 +125,7 @@ public class TextPlainCodec implements MediaTypeCodec {
     public <T> ByteBuffer encode(T object, ByteBufferFactory allocator) throws CodecException {
         byte[] bytes = encode(object);
         int len = bytes.length;
-        return allocator.buffer(len, len)
-                        .write(bytes);
+
+        return allocator.buffer(len, len).write(bytes);
     }
 }

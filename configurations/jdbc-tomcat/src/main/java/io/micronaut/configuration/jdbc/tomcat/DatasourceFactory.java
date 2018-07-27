@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 original authors
+ * Copyright 2017-2018 original authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,29 +13,56 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.micronaut.configuration.jdbc.tomcat;
 
 import io.micronaut.context.annotation.Bean;
 import io.micronaut.context.annotation.EachBean;
 import io.micronaut.context.annotation.Factory;
-import org.apache.tomcat.jdbc.pool.DataSource;
-import io.micronaut.context.annotation.Bean;
-import io.micronaut.context.annotation.EachBean;
-import io.micronaut.context.annotation.EachProperty;
-import io.micronaut.context.annotation.Factory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import javax.annotation.PreDestroy;
+import javax.sql.DataSource;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
- * Creates a tomcat data source for each configuration bean
+ * Creates a tomcat data source for each configuration bean.
  *
  * @author James Kleeh
  * @since 1.0
  */
 @Factory
-public class DatasourceFactory {
+public class DatasourceFactory implements AutoCloseable {
 
+    private static final Logger LOG = LoggerFactory.getLogger(DatasourceFactory.class);
+    private List<org.apache.tomcat.jdbc.pool.DataSource> dataSources = new ArrayList<>(2);
+
+    /**
+     * @param datasourceConfiguration A {@link DatasourceConfiguration}
+     * @return An Apache Tomcat {@link DataSource}
+     */
     @EachBean(DatasourceConfiguration.class)
-    @Bean(preDestroy = "close")
     public DataSource dataSource(DatasourceConfiguration datasourceConfiguration) {
-        return new DataSource(datasourceConfiguration);
+        org.apache.tomcat.jdbc.pool.DataSource ds = new org.apache.tomcat.jdbc.pool.DataSource(datasourceConfiguration);
+        dataSources.add(ds);
+        return ds;
     }
+
+    @Override
+    @PreDestroy
+    public void close() {
+        for (org.apache.tomcat.jdbc.pool.DataSource dataSource : dataSources) {
+            try {
+                dataSource.close();
+            } catch (Exception e) {
+                if (LOG.isWarnEnabled()) {
+                    LOG.warn("Error closing data source [" + dataSource + "]: " + e.getMessage(), e);
+                }
+            }
+        }
+    }
+
+
 }

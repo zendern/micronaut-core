@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 original authors
+ * Copyright 2017-2018 original authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,15 +24,9 @@ import static org.junit.Assert.*;
 
 import org.junit.Assert;
 import org.junit.Test;
-import io.micronaut.context.ApplicationContext;
 import io.micronaut.core.type.Argument;
-import io.micronaut.core.util.CollectionUtils;
-import io.micronaut.http.HttpRequest;
-import io.micronaut.http.HttpResponse;
-import io.micronaut.http.HttpStatus;
 import io.micronaut.runtime.server.EmbeddedServer;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
@@ -60,6 +54,7 @@ public class HttpGetTest {
         assertTrue(body.isPresent());
         assertEquals(body.get(), "success");
 
+        client.stop();
         applicationContext.stop();
     }
 
@@ -83,6 +78,7 @@ public class HttpGetTest {
         assertEquals(list.size(), 1);
         assertTrue(list.get(0) instanceof HttpGetSpec.Book);
 
+        client.stop();
         applicationContext.stop();
     }
 }

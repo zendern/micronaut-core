@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 original authors
+ * Copyright 2017-2018 original authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,27 +15,14 @@
  */
 package io.micronaut.discovery.consul
 
-import io.micronaut.context.ApplicationContext
-import io.micronaut.core.io.socket.SocketUtils
-import io.micronaut.discovery.consul.client.v1.ConsulClient
-import io.micronaut.discovery.consul.client.v1.HTTPCheck
-import io.micronaut.discovery.consul.client.v1.HealthEntry
-import io.micronaut.discovery.consul.client.v1.NewServiceEntry
-import io.micronaut.http.HttpMethod
-import io.micronaut.http.HttpStatus
-import io.micronaut.http.client.HttpClient
-import io.micronaut.http.client.exceptions.HttpClientResponseException
 import io.reactivex.Flowable
 import io.micronaut.context.ApplicationContext
-import io.micronaut.context.annotation.Requires
-import io.micronaut.core.io.socket.SocketUtils
 import io.micronaut.discovery.DiscoveryClient
 import io.micronaut.discovery.ServiceInstance
 import io.micronaut.discovery.consul.client.v1.ConsulClient
 import io.micronaut.discovery.consul.client.v1.HTTPCheck
 import io.micronaut.discovery.consul.client.v1.HealthEntry
 import io.micronaut.discovery.consul.client.v1.NewServiceEntry
-import io.micronaut.discovery.consul.client.v1.TTLCheck
 import io.micronaut.http.HttpMethod
 import io.micronaut.http.HttpStatus
 import io.micronaut.http.client.HttpClient
@@ -44,7 +31,6 @@ import io.micronaut.runtime.server.EmbeddedServer
 import spock.lang.AutoCleanup
 import spock.lang.Shared
 import spock.lang.Specification
-import spock.lang.Stepwise
 import spock.util.concurrent.PollingConditions
 
 import java.time.Duration
@@ -54,13 +40,10 @@ import java.time.Duration
  * @since 1.0
  */
 class ConsulMockAutoRegistrationSpec extends Specification {
-    @Shared
-    int serverPort = SocketUtils.findAvailableTcpPort()
 
     @AutoCleanup
     @Shared
     EmbeddedServer consulServer = ApplicationContext.run(EmbeddedServer, [
-            'micronaut.server.port'                   : serverPort,
             (MockConsulServer.ENABLED):true
     ])
 
@@ -70,7 +53,7 @@ class ConsulMockAutoRegistrationSpec extends Specification {
             ['micronaut.application.name'              : 'test-auto-reg',
              "micronaut.caches.discoveryClient.enabled": false,
              'consul.client.host'                     : 'localhost',
-             'consul.client.port'                     : serverPort]
+             'consul.client.port'                     : consulServer.getPort()]
     )
 
     @Shared
@@ -109,7 +92,7 @@ class ConsulMockAutoRegistrationSpec extends Specification {
         def serviceName = 'another-server'
         EmbeddedServer anotherServer = ApplicationContext.run(EmbeddedServer, ['micronaut.application.name': serviceName,
                                                                                'consul.client.host'       : 'localhost',
-                                                                               'consul.client.port'       : serverPort])
+                                                                               'consul.client.port'       : consulServer.port])
 
         PollingConditions conditions = new PollingConditions(timeout: 3, delay: 0.5)
 
@@ -143,7 +126,7 @@ class ConsulMockAutoRegistrationSpec extends Specification {
         EmbeddedServer anotherServer = ApplicationContext.run(EmbeddedServer, ['micronaut.application.name'      : serviceName,
                                                                                'consul.client.registration.tags': ['foo', 'bar'],
                                                                                'consul.client.host'             : 'localhost',
-                                                                               'consul.client.port'             : serverPort])
+                                                                               'consul.client.port'             : consulServer.port])
 
         PollingConditions conditions = new PollingConditions(timeout: 3)
 
@@ -165,7 +148,7 @@ class ConsulMockAutoRegistrationSpec extends Specification {
                                                                                'consul.client.registration.check.http': true,
                                                                                'consul.client.registration.tags'      : ['foo', 'bar'],
                                                                                'consul.client.host'                   : 'localhost',
-                                                                               'consul.client.port'                   : serverPort])
+                                                                               'consul.client.port'                   : consulServer.port])
 
         PollingConditions conditions = new PollingConditions(timeout: 3)
         String expectedCheckURI = "http://localhost:${anotherServer.port}/health"
@@ -195,7 +178,7 @@ class ConsulMockAutoRegistrationSpec extends Specification {
                                                                                'consul.client.registration.check.deregisterCriticalServiceAfter': '90m',
                                                                                'consul.client.registration.tags'                                : ['foo', 'bar'],
                                                                                'consul.client.host'                                             : 'localhost',
-                                                                               'consul.client.port'                                             : serverPort])
+                                                                               'consul.client.port'                                             : consulServer.port])
 
         PollingConditions conditions = new PollingConditions(timeout: 3)
         String expectedCheckURI = "http://localhost:${anotherServer.port}/health"
@@ -225,7 +208,7 @@ class ConsulMockAutoRegistrationSpec extends Specification {
                                                                                'consul.client.registration.check.tlsSkipVerify': true,
                                                                                'consul.client.registration.tags'               : ['foo', 'bar'],
                                                                                'consul.client.host'                            : 'localhost',
-                                                                               'consul.client.port'                            : serverPort])
+                                                                               'consul.client.port'                            : consulServer.port])
 
         PollingConditions conditions = new PollingConditions(timeout: 3)
         String expectedCheckURI = "http://localhost:${anotherServer.port}/health"
@@ -255,7 +238,7 @@ class ConsulMockAutoRegistrationSpec extends Specification {
                                                                                'consul.client.registration.check.method': 'POST',
                                                                                'consul.client.registration.tags'        : ['foo', 'bar'],
                                                                                'consul.client.host'                     : 'localhost',
-                                                                               'consul.client.port'                     : serverPort])
+                                                                               'consul.client.port'                     : consulServer.port])
 
         PollingConditions conditions = new PollingConditions(timeout: 3)
         String expectedCheckURI = "http://localhost:${anotherServer.port}/health"

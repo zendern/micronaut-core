@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 original authors
+ * Copyright 2017-2018 original authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,7 +24,9 @@ import io.micronaut.http.annotation.Get
 import io.micronaut.http.annotation.Produces
 import io.micronaut.runtime.server.EmbeddedServer
 import io.reactivex.Flowable
+import io.reactivex.Single
 import spock.lang.AutoCleanup
+import spock.lang.Issue
 import spock.lang.Shared
 import spock.lang.Specification
 import spock.lang.Unroll
@@ -40,6 +42,24 @@ class ServerRedirectSpec extends Specification {
     EmbeddedServer embeddedServer =
             ApplicationContext.run(EmbeddedServer)
 
+
+    @Issue("https://github.com/micronaut-projects/micronaut-core/issues/217")
+    void "test https redirect"() {
+
+        given:"An HTTPS URL issues an HTTPS"
+        YoutubeClient youtubeClient=  embeddedServer.getApplicationContext().getBean(YoutubeClient)
+        def client = HttpClient.create(new URL("https://www.youtube.com"))
+        def response= client
+                .toBlocking().retrieve("/")
+
+        expect:"The response was returned and doesn't loop"
+        response
+        youtubeClient.test().blockingGet()
+
+        cleanup:
+        client.close()
+    }
+
     @Unroll
     void "test http client follows #type redirects for regular exchange requests"() {
         given:
@@ -47,6 +67,10 @@ class ServerRedirectSpec extends Specification {
 
         expect:
         client.toBlocking().retrieve("/redirect/$type") == result
+
+        cleanup:
+        client.stop()
+        client.close()
 
         where:
         type        | result
@@ -64,6 +88,10 @@ class ServerRedirectSpec extends Specification {
 
         expect:
         client.jsonStream(HttpRequest.GET("/redirect/stream/$type"), Book).blockingFirst().title == "The Stand"
+
+        cleanup:
+        client.stop()
+        client.close()
 
         where:
         type        | result
@@ -132,6 +160,13 @@ class ServerRedirectSpec extends Specification {
             Flowable.just(new Book(title: "The Stand"))
         }
     }
+
+    @Client("https://youtube.com")
+    static interface YoutubeClient {
+        @Get("/")
+        Single<String> test()
+    }
+
 
     static class Book {
         String title
