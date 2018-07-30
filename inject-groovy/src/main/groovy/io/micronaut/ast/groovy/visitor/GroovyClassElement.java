@@ -86,4 +86,9 @@ public class GroovyClassElement extends AbstractGroovyElement implements ClassEl
     public boolean isInnerClass() {
         return classNode instanceof InnerClassNode;
     }
+
+    @Override
+    public String getSimpleName() {
+        return classNode.getNameWithoutPackage();
+    }
 }

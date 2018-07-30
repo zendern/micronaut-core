@@ -47,6 +47,11 @@ public class JavaClassElement extends AbstractJavaElement implements ClassElemen
     }
 
     @Override
+    public String getSimpleName() {
+        return classElement.getSimpleName().toString();
+    }
+
+    @Override
     public boolean isInnerClass() {
         Element enclosingElement = classElement.getEnclosingElement();
         return enclosingElement != null && enclosingElement.getKind().isClass();

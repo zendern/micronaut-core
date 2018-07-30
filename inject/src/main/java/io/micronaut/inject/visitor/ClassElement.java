@@ -28,4 +28,9 @@ public interface ClassElement extends Element {
      * @return True if the class is an inner class
      */
     boolean isInnerClass();
+
+    /**
+     * @return The class name without the package
+     */
+    String getSimpleName();
 }

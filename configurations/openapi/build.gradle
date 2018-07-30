@@ -3,6 +3,7 @@ dependencies {
     compile project(":http")
     compile "io.swagger.core.v3:swagger-core:2.0.2"
     compile "io.swagger.core.v3:swagger-jaxrs2:2.0.2"
+    compileOnly "javax.ws.rs:javax.ws.rs-api:2.1"
 
     testCompileOnly project(":inject-java")
     testCompileOnly project(":inject-groovy")

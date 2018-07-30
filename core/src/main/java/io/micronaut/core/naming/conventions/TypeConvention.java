@@ -49,7 +49,17 @@ public enum TypeConvention {
      * @return The property name equivalent
      */
     public String asPropertyName(Class type) {
-        return NameUtils.decapitalizeWithoutSuffix(type.getSimpleName(), suffix);
+        return this.asPropertyName(type.getSimpleName());
+    }
+
+    /**
+     * <p>Returns the property name equivalent for this convention for the given class. Eg. BookController -&gt; book</p>
+     *
+     * @param typeName The type name
+     * @return The property name equivalent
+     */
+    public String asPropertyName(String typeName) {
+        return NameUtils.decapitalizeWithoutSuffix(typeName, suffix);
     }
 
     /**
@@ -59,7 +69,17 @@ public enum TypeConvention {
      * @return The property name equivalent
      */
     public String asHyphenatedName(Class type) {
-        String shortName = NameUtils.trimSuffix(type.getSimpleName(), suffix);
+        return asHyphenatedName(type.getSimpleName());
+    }
+
+    /**
+     * <p>Returns the hyphenated equivalent for this convention for the given class. Eg. BookShopController -&gt; book-shop</p>
+     *
+     * @param typeName The type name
+     * @return The property name equivalent
+     */
+    public String asHyphenatedName(String typeName) {
+        String shortName = NameUtils.trimSuffix(typeName, suffix);
         return NameUtils.hyphenate(shortName);
     }
 
