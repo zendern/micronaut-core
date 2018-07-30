@@ -29,8 +29,11 @@ import io.micronaut.context.annotation.Requires
 import io.micronaut.context.env.Environment
 import org.grails.datastore.gorm.neo4j.Neo4jDatastore
 import org.grails.datastore.gorm.neo4j.Neo4jDatastoreTransactionManager
+import org.grails.datastore.gorm.neo4j.Neo4jMappingContext
+import org.grails.datastore.mapping.model.MappingContext
 import org.neo4j.driver.v1.Driver
 
+import javax.inject.Named
 import javax.inject.Singleton
 import java.util.stream.Stream
 
@@ -69,6 +72,12 @@ class Neo4jDatastoreFactory {
             applicationContext.inject(o)
         }
         return datastore
+    }
+
+    @Singleton
+    @Bean
+    Neo4jMappingContext mappingContext(Neo4jDatastore datastore) {
+        datastore.mappingContext
     }
 
     @Singleton

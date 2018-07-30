@@ -25,7 +25,9 @@ import io.micronaut.context.ApplicationContext
 import io.micronaut.context.annotation.Bean
 import io.micronaut.context.annotation.Context
 import io.micronaut.context.annotation.Factory
+import org.grails.datastore.mapping.model.MappingContext
 import org.grails.orm.hibernate.HibernateDatastore
+import org.grails.orm.hibernate.cfg.HibernateMappingContext
 import org.grails.orm.hibernate.connections.HibernateConnectionSource
 import org.hibernate.SessionFactory
 import org.springframework.transaction.PlatformTransactionManager
@@ -70,6 +72,12 @@ class HibernateDatastoreFactory {
         }
 
         return datastore
+    }
+
+    @Bean
+    @Singleton
+    HibernateMappingContext mappingContext(HibernateDatastore hibernateDatastore) {
+        hibernateDatastore.mappingContext
     }
 
     @Bean

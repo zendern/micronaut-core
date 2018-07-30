@@ -29,7 +29,9 @@ import io.micronaut.context.annotation.Primary;
 import io.micronaut.context.annotation.Secondary;
 import io.micronaut.context.env.Environment;
 import io.micronaut.spring.core.env.PropertyResolverAdapter;
+import org.grails.datastore.mapping.model.MappingContext;
 import org.grails.datastore.mapping.mongo.MongoDatastore;
+import org.grails.datastore.mapping.mongo.config.MongoMappingContext;
 import org.springframework.transaction.PlatformTransactionManager;
 
 import javax.inject.Named;
@@ -76,6 +78,12 @@ public class MongoDatastoreFactory {
             applicationContext.inject(service);
         }
         return datastore;
+    }
+
+    @Bean
+    @Singleton
+    MongoMappingContext mappingContext(MongoDatastore datastore) {
+        return datastore.getMappingContext();
     }
 
     /**

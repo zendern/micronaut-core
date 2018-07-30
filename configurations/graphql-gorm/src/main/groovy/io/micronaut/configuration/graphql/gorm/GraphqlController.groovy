@@ -7,6 +7,7 @@ import graphql.ExecutionResult
 import graphql.GraphQL
 import io.micronaut.configuration.graphql.gorm.context.GraphQLContextBuilder
 import io.micronaut.core.io.ResourceLoader
+import io.micronaut.core.io.ResourceResolver
 import io.micronaut.http.HttpRequest
 import io.micronaut.http.HttpResponse
 import io.micronaut.http.MediaType
@@ -15,7 +16,7 @@ import io.micronaut.http.annotation.Controller
 import io.micronaut.http.annotation.Get
 import io.micronaut.http.annotation.Header
 import io.micronaut.http.annotation.Post
-import io.micronaut.http.server.types.files.StreamedFileCustomizableResponseType
+import io.micronaut.http.server.types.files.StreamedFile
 
 import javax.annotation.Nullable
 import javax.inject.Inject
@@ -27,6 +28,7 @@ class GraphqlController {
     @Inject ObjectMapper objectMapper
     @Inject GraphQLContextBuilder graphQLContextBuilder
     @Inject GraphQL graphQL
+    @Inject ResourceResolver resourceResolver
 
     private static final String graphiql = "classpath:graphiql.html"
     private static URL cachedBrowser = null
@@ -36,10 +38,8 @@ class GraphqlController {
         objectMapper.readValue(json, typeRef)
     }
 
-    private HttpResponse executeRequest(GraphQLRequest graphQLRequest, HttpRequest request) {
+    private HttpResponse<GraphQLResponse> executeRequest(GraphQLRequest graphQLRequest, HttpRequest request) {
         Object context = graphQLContextBuilder.buildContext(request)
-
-        Map<String, Object> result = new LinkedHashMap<>()
 
         ExecutionResult executionResult = graphQL.execute(ExecutionInput.newExecutionInput()
                 .query(graphQLRequest.query)
@@ -49,10 +49,12 @@ class GraphqlController {
                 .variables(graphQLRequest.variables)
                 .build())
 
+        GraphQLResponse result = new GraphQLResponse()
+
         if (executionResult.errors.size() > 0) {
-            result.put('errors', executionResult.errors)
+            result.errors = executionResult.errors
         }
-        result.put('data', executionResult.data)
+        result.data = executionResult.data
 
         HttpResponse.ok(result)
     }
@@ -87,17 +89,15 @@ class GraphqlController {
     HttpResponse browser() {
         if (configuration.enabled && configuration.browser) {
             if (cachedBrowser == null) {
-                Optional<ResourceLoader> resourceLoader = ResourceLoader.forResource(graphiql, this.getClass().getClassLoader())
-                if (resourceLoader.isPresent()) {
-                    Optional<URL> url = resourceLoader.get().getResource(graphiql)
-                    if (url.isPresent()) {
-                        cachedBrowser = url.get()
-                    }
+                Optional<URL> url = resourceResolver.getResource(graphiql)
+                if (url.isPresent()) {
+                    cachedBrowser = url.get()
                 }
+
             }
 
             if (cachedBrowser != null) {
-                return HttpResponse.ok(new StreamedFileCustomizableResponseType(cachedBrowser))
+                return HttpResponse.ok(new StreamedFile(cachedBrowser)).contentType(MediaType.TEXT_HTML + ";charset=utf-8")
             }
         }
 
