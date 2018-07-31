@@ -13,26 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-package io.micronaut.security;
-
-import io.micronaut.management.endpoint.processors.NonPathTypesProvider;
-import io.micronaut.security.authentication.Authentication;
-
-import javax.inject.Singleton;
-import java.util.Collections;
-import java.util.List;
+package io.micronaut.docs.config.mapFormat
 
 /**
- *
- * @author Sergio del Amo
+ * @author Graeme Rocher
  * @since 1.0
  */
-@Singleton
-public class SecurityNonPathTypesProvider implements NonPathTypesProvider {
+// tag::class[]
+interface Engine {
+    String start()
 
-    @Override
-    public List<Class> nonPathTypes() {
-        return Collections.singletonList(Authentication.class);
-    }
+    Map getSensors()
 }
+// end::class[]

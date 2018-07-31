@@ -13,21 +13,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package io.micronaut.docs.config.mapFormat
 
-package io.micronaut.management.endpoint.processors;
 
-import java.util.List;
+import javax.inject.Singleton
 
 /**
- * Defines a list of types which will not be used as path parameters.
- *
- * @author Sergio del Amo
+ * @author Graeme Rocher
  * @since 1.0
  */
-public interface NonPathTypesProvider {
+// tag::class[]
+@Singleton
+class Vehicle {
+    final Engine engine
 
-    /**
-     * @return The non-path types
-     */
-    List<Class> nonPathTypes();
+    Vehicle(Engine engine) {
+        this.engine = engine
+    }
+
+    String start() {
+        engine.start()
+    }
 }
+// end::class[]

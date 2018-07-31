@@ -78,7 +78,6 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Predicate;
 
 /**
  * Introduction advice that implements the {@link Client} annotation.
@@ -107,6 +106,7 @@ public class HttpClientIntroductionAdvice implements MethodInterceptor<Object, O
      * Constructor for advice class to setup things like Headers, Cookies, Parameters for Clients.
      *
      * @param beanContext          context to resolve beans
+     * @param jsonMediaTypeCodec The JSON media type codec
      * @param loadBalancerResolver load balancer resolver
      * @param transformers         transformation classes
      */
@@ -130,7 +130,7 @@ public class HttpClientIntroductionAdvice implements MethodInterceptor<Object, O
      */
     @Override
     public Object intercept(MethodInvocationContext<Object, Object> context) {
-        AnnotationValue<Client> clientAnnotation = context.getValues(Client.class).orElseThrow(() ->
+        AnnotationValue<Client> clientAnnotation = context.findAnnotation(Client.class).orElseThrow(() ->
                 new IllegalStateException("Client advice called from type that is not annotated with @Client: " + context)
         );
 
@@ -332,7 +332,7 @@ public class HttpClientIntroductionAdvice implements MethodInterceptor<Object, O
                                 )).map(Event::getData);
                             }
                         } else {
-                            boolean isJson = Arrays.stream(acceptTypes).anyMatch(mediaType -> mediaType.getExtension().equals("json") || jsonMediaTypeCodec.getMediaTypes().contains(mediaType));
+                            boolean isJson = isJsonParsedMediaType(acceptTypes);
                             if (isJson) {
                                 publisher = streamingHttpClient.jsonStream(
                                         request, publisherArgument
@@ -445,6 +445,14 @@ public class HttpClientIntroductionAdvice implements MethodInterceptor<Object, O
         return context.proceed();
     }
 
+    private boolean isJsonParsedMediaType(MediaType[] acceptTypes) {
+        return Arrays.stream(acceptTypes).anyMatch(mediaType ->
+                mediaType.equals(MediaType.APPLICATION_JSON_STREAM_TYPE) ||
+                mediaType.getExtension().equals(MediaType.EXTENSION_JSON) ||
+                jsonMediaTypeCodec.getMediaTypes().contains(mediaType)
+        );
+    }
+
     /**
      * Resolve the template for the client annotation.
      *
@@ -508,7 +516,7 @@ public class HttpClientIntroductionAdvice implements MethodInterceptor<Object, O
             if (client instanceof DefaultHttpClient) {
                 DefaultHttpClient defaultClient = (DefaultHttpClient) client;
                 defaultClient.setClientIdentifiers(clientId);
-                AnnotationValue<JacksonFeatures> jacksonFeatures = context.getValues(JacksonFeatures.class).orElse(null);
+                AnnotationValue<JacksonFeatures> jacksonFeatures = context.findAnnotation(JacksonFeatures.class).orElse(null);
 
                 if (jacksonFeatures != null) {
                     Optional<MediaTypeCodec> existingCodec = defaultClient.getMediaTypeCodecRegistry().findCodec(MediaType.APPLICATION_JSON_TYPE);

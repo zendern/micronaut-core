@@ -13,24 +13,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package io.micronaut.docs.config.mapFormat
 
-package io.micronaut.management.endpoint.processors;
-
-import javax.inject.Singleton;
-import java.security.Principal;
-import java.util.Collections;
-import java.util.List;
+import javax.inject.Inject
+import javax.inject.Singleton
 
 /**
- *
- * @author Sergio del Amo
+ * @author Graeme Rocher
  * @since 1.0
  */
+// tag::class[]
 @Singleton
-public class DefaultNonPathTypesProvider implements NonPathTypesProvider {
+class EngineImpl implements Engine {
+
+    @Inject EngineConfig config
 
     @Override
-    public List<Class> nonPathTypes() {
-        return Collections.singletonList(Principal.class);
+    Map getSensors() {
+        config.sensors
+    }
+
+    String start() {
+        "Engine Starting V${config.cylinders} [sensors=${sensors.size()}]"
     }
 }
+// end::class[]
