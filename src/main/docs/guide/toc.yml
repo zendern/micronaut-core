@@ -48,6 +48,7 @@ aop:
   title: Aspect Oriented Programming
   aroundAdvice: Around Advice
   introductionAdvice: Introduction Advice
+  adapterAdvice: Method Adapter Advice
   validation:
     title: Validation Advice
   caching: 
@@ -64,7 +65,6 @@ httpServer:
   runningSpecificPort: Running Server on a Specific Port
   routing: HTTP Routing
   binding: Simple Request Binding
-  respondingnotfound: Simple 404 responses
   requestResponse: The HttpRequest and HttpResponse
   producesAnnotation: Response Content-Type
   consumesAnnotation: Accepted Request Content-Type

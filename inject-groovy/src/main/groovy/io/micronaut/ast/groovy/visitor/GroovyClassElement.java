@@ -16,6 +16,7 @@
 
 package io.micronaut.ast.groovy.visitor;
 
+import io.micronaut.ast.groovy.utils.AstClassUtils;
 import io.micronaut.core.annotation.AnnotationMetadata;
 import io.micronaut.inject.visitor.ClassElement;
 import org.codehaus.groovy.ast.ClassNode;
@@ -90,5 +91,10 @@ public class GroovyClassElement extends AbstractGroovyElement implements ClassEl
     @Override
     public String getSimpleName() {
         return classNode.getNameWithoutPackage();
+    }
+
+    @Override
+    public boolean isAssignable(String type) {
+        return AstClassUtils.isSubclassOf(classNode, type);
     }
 }

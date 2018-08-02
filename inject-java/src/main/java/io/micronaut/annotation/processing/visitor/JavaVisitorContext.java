@@ -16,11 +16,15 @@
 
 package io.micronaut.annotation.processing.visitor;
 
+import io.micronaut.annotation.processing.AnnotationUtils;
 import io.micronaut.inject.visitor.VisitorContext;
 
+import javax.annotation.processing.Filer;
 import javax.annotation.processing.Messager;
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.Element;
+import javax.lang.model.util.Elements;
+import javax.lang.model.util.Types;
 import javax.tools.Diagnostic;
 import javax.tools.JavaFileManager;
 import javax.tools.StandardLocation;
@@ -35,14 +39,25 @@ import java.io.Writer;
 public class JavaVisitorContext implements VisitorContext {
 
     private final Messager messager;
-    private final ProcessingEnvironment processingEnvironment;
+    private final Filer filer;
+    private final Elements elements;
+    private final AnnotationUtils annotationUtils;
+    private final Types types;
 
     /**
-     * @param processingEnvironment The {@link ProcessingEnvironment}
+     * The default constructor
+     *
+     * @param processingEnvironment The processing environment
+     * @param elements The elements
+     * @param annotationUtils The annotation utils
+     * @param types Type types
      */
-    public JavaVisitorContext(ProcessingEnvironment processingEnvironment) {
-        this.processingEnvironment = processingEnvironment;
+    public JavaVisitorContext(ProcessingEnvironment processingEnvironment, Elements elements, AnnotationUtils annotationUtils, Types types) {
         this.messager = processingEnvironment.getMessager();
+        this.filer = processingEnvironment.getFiler();
+        this.elements = elements;
+        this.annotationUtils = annotationUtils;
+        this.types = types;
     }
 
     @Override
@@ -67,8 +82,44 @@ public class JavaVisitorContext implements VisitorContext {
 
     @Override
     public Writer createDistFile(String pkg, String path) throws Exception {
-        return processingEnvironment.getFiler()
+        return filer
                 .createResource(StandardLocation.CLASS_OUTPUT, pkg, path)
                 .openWriter();
+    }
+
+    /**
+     * The messager.
+     *
+     * @return The messager
+     */
+    public Messager getMessager() {
+        return messager;
+    }
+
+    /**
+     * The elements.
+     *
+     * @return The elements
+     */
+    public Elements getElements() {
+        return elements;
+    }
+
+    /**
+     * The annotation utils.
+     *
+     * @return The annotation utils
+     */
+    public AnnotationUtils getAnnotationUtils() {
+        return annotationUtils;
+    }
+
+    /**
+     * The types.
+     *
+     * @return The types
+     */
+    public Types getTypes() {
+        return types;
     }
 }

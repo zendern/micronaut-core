@@ -21,6 +21,8 @@ import io.micronaut.inject.visitor.ClassElement;
 
 import javax.lang.model.element.Element;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.type.TypeMirror;
+import javax.lang.model.util.Types;
 
 /**
  * A class element returning data from a {@link TypeElement}.
@@ -31,14 +33,17 @@ import javax.lang.model.element.TypeElement;
 public class JavaClassElement extends AbstractJavaElement implements ClassElement {
 
     private final TypeElement classElement;
+    private final JavaVisitorContext visitorContext;
 
     /**
      * @param classElement       The {@link TypeElement}
      * @param annotationMetadata The annotation metadata
+     * @param visitorContext The visitor context
      */
-    JavaClassElement(TypeElement classElement, AnnotationMetadata annotationMetadata) {
+    JavaClassElement(TypeElement classElement, AnnotationMetadata annotationMetadata, JavaVisitorContext visitorContext) {
         super(classElement, annotationMetadata);
         this.classElement = classElement;
+        this.visitorContext = visitorContext;
     }
 
     @Override
@@ -55,5 +60,17 @@ public class JavaClassElement extends AbstractJavaElement implements ClassElemen
     public boolean isInnerClass() {
         Element enclosingElement = classElement.getEnclosingElement();
         return enclosingElement != null && enclosingElement.getKind().isClass();
+    }
+
+    @Override
+    public boolean isAssignable(String type) {
+        TypeElement otherElement = visitorContext.getElements().getTypeElement(type);
+        if (otherElement != null) {
+            Types types = visitorContext.getTypes();
+            TypeMirror thisType = types.erasure(classElement.asType());
+            TypeMirror thatType = types.erasure(otherElement.asType());
+            return types.isAssignable(thisType, thatType);
+        }
+        return false;
     }
 }

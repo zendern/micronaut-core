@@ -16,9 +16,12 @@
 
 package io.micronaut.ast.groovy.visitor;
 
+import io.micronaut.ast.groovy.utils.AstAnnotationUtils;
 import io.micronaut.core.annotation.AnnotationMetadata;
+import io.micronaut.inject.visitor.ClassElement;
 import io.micronaut.inject.visitor.MethodElement;
 import org.codehaus.groovy.ast.ConstructorNode;
+import org.codehaus.groovy.ast.ClassNode;
 import org.codehaus.groovy.ast.MethodNode;
 
 /**
@@ -83,5 +86,11 @@ public class GroovyMethodElement extends AbstractGroovyElement implements Method
     @Override
     public boolean isConstructor() {
         return methodNode instanceof ConstructorNode;
+    }
+
+    @Override
+    public ClassElement getReturnType() {
+        ClassNode returnType = methodNode.getReturnType();
+        return new GroovyClassElement(returnType, AstAnnotationUtils.getAnnotationMetadata(returnType));
     }
 }

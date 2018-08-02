@@ -16,6 +16,8 @@
 
 package io.micronaut.inject.visitor;
 
+import javax.annotation.Nullable;
+
 /**
  * Stores data about an element that references a method.
  *
@@ -28,4 +30,9 @@ public interface MethodElement extends Element {
      * @return True if the element represents a constructor
      */
     boolean isConstructor();
+
+    /**
+     * @return The return type of the method
+     */
+    @Nullable ClassElement getReturnType();
 }

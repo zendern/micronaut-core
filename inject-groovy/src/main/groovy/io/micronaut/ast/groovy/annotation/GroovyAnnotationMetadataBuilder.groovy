@@ -16,7 +16,9 @@
 package io.micronaut.ast.groovy.annotation
 
 import groovy.transform.CompileStatic
+import io.micronaut.ast.groovy.utils.ExtendedParameter
 import io.micronaut.core.convert.ConversionService
+import io.micronaut.core.reflect.ClassUtils
 import io.micronaut.core.util.StringUtils
 import io.micronaut.core.value.OptionalValues
 import io.micronaut.inject.annotation.AbstractAnnotationMetadataBuilder
@@ -67,6 +69,12 @@ class GroovyAnnotationMetadataBuilder extends AbstractAnnotationMetadataBuilder<
     }
 
     @Override
+    protected Optional<AnnotatedNode> getAnnotationMirror(String annotationName) {
+        ClassNode cn = ClassUtils.forName(annotationName, GroovyAnnotationMetadataBuilder.classLoader).map({ Class cls -> ClassHelper.make(cls)}).orElseGet({->ClassHelper.make(annotationName)})
+        return Optional.of(cn)
+    }
+
+    @Override
     protected String getAnnotationTypeName(AnnotationNode annotationMirror) {
         return annotationMirror.classNode.name
     }
@@ -97,7 +105,18 @@ class GroovyAnnotationMetadataBuilder extends AbstractAnnotationMetadataBuilder<
             }
             hierarchy.add(mn)
             return hierarchy
-
+        } else if (element instanceof ExtendedParameter) {
+            ExtendedParameter p = (ExtendedParameter) element
+            List<AnnotatedNode> hierarchy = []
+            MethodNode methodNode = p.methodNode
+            if (!methodNode.getAnnotations(ANN_OVERRIDE).isEmpty()) {
+                int variableIdx = Arrays.asList(methodNode.parameters).indexOf(p.parameter)
+                for (MethodNode overridden : findOverriddenMethods(methodNode)) {
+                    hierarchy.add(new ExtendedParameter(overridden, overridden.parameters[variableIdx]))
+                }
+            }
+            hierarchy.add(p)
+            return hierarchy
         } else {
             return Collections.singletonList(element)
         }

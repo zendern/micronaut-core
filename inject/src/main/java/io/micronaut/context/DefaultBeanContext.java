@@ -34,6 +34,7 @@ import io.micronaut.core.io.service.StreamSoftServiceLoader;
 import io.micronaut.core.naming.Named;
 import io.micronaut.core.order.OrderUtil;
 import io.micronaut.core.order.Ordered;
+import io.micronaut.core.reflect.GenericTypeUtils;
 import io.micronaut.core.reflect.ReflectionUtils;
 import io.micronaut.core.type.Argument;
 import io.micronaut.core.type.ReturnType;
@@ -255,7 +256,7 @@ public class DefaultBeanContext implements BeanContext {
 
     @SuppressWarnings("unchecked")
     @Override
-    public Collection<BeanRegistration<?>> getBeanRegistrations(Qualifier<?> qualifier) {
+    public Collection<BeanRegistration<?>> getActiveBeanRegistrations(Qualifier<?> qualifier) {
         if (qualifier == null) {
             return Collections.emptyList();
         }
@@ -272,7 +273,7 @@ public class DefaultBeanContext implements BeanContext {
 
     @SuppressWarnings("unchecked")
     @Override
-    public <T> Collection<BeanRegistration<T>> getBeanRegistrations(Class<T> beanType) {
+    public <T> Collection<BeanRegistration<T>> getActiveBeanRegistrations(Class<T> beanType) {
         if (beanType == null) {
             return Collections.emptyList();
         }
@@ -285,6 +286,16 @@ public class DefaultBeanContext implements BeanContext {
             })
             .collect(Collectors.toList());
         return (Collection<BeanRegistration<T>>) result;
+    }
+
+    @Override
+    public <T> Collection<BeanRegistration<T>> getBeanRegistrations(Class<T> beanType) {
+        if (beanType == null) {
+            return Collections.emptyList();
+        }
+        // initialize the beans
+        getBeansOfType(beanType);
+        return getActiveBeanRegistrations(beanType);
     }
 
     @Override
@@ -2056,7 +2067,9 @@ public class DefaultBeanContext implements BeanContext {
         private final BeanContext beanContext;
         private final Class<T> beanType;
         private final Qualifier<T> qualifier;
+        private final boolean isSingleton;
 
+        private T target;
         /**
          * @param beanContext The bean context
          * @param beanType    The bean type
@@ -2068,6 +2081,7 @@ public class DefaultBeanContext implements BeanContext {
             this.beanContext = beanContext;
             this.beanType = beanType;
             this.qualifier = qualifier;
+            this.isSingleton = beanContext.findBeanDefinition(beanType, qualifier).map(BeanDefinition::isSingleton).orElse(false);
         }
 
         @Override
@@ -2082,7 +2096,22 @@ public class DefaultBeanContext implements BeanContext {
 
         @Override
         public R invoke(Object... arguments) {
-            return method.invoke(beanContext.getBean(beanType, qualifier), arguments);
+            if (isSingleton) {
+                T target = this.target;
+                if (target == null) {
+                    synchronized (this) { // double check
+                        target = this.target;
+                        if (target == null) {
+                            target = beanContext.getBean(beanType, qualifier);
+                            this.target = target;
+                        }
+                    }
+                }
+
+                return method.invoke(target, arguments);
+            } else {
+                return method.invoke(beanContext.getBean(beanType, qualifier), arguments);
+            }
         }
     }
 
@@ -2162,6 +2191,7 @@ public class DefaultBeanContext implements BeanContext {
      */
     private static class NoInjectionBeanDefinition<T> implements BeanDefinition<T>, BeanDefinitionReference<T> {
         private final Class<?> singletonClass;
+        private final Map<Class<?>, List<Argument<?>>> typeArguments = new HashMap<>();
 
         /**
          * @param singletonClass The singleton class
@@ -2173,6 +2203,16 @@ public class DefaultBeanContext implements BeanContext {
         @Override
         public Optional<Class<? extends Annotation>> getScope() {
             return Optional.of(Singleton.class);
+        }
+
+        @SuppressWarnings("unchecked")
+        @Nonnull
+        @Override
+        public List<Argument<?>> getTypeArguments(Class<?> type) {
+            return typeArguments.computeIfAbsent(type, aClass -> {
+                Class[] classes = aClass.isInterface() ? GenericTypeUtils.resolveInterfaceTypeArguments(singletonClass, aClass) : GenericTypeUtils.resolveSuperTypeGenericArguments(singletonClass, aClass);
+                return Arrays.stream(classes).map((Function<Class, Argument<?>>) Argument::of).collect(Collectors.toList());
+            });
         }
 
         @Override

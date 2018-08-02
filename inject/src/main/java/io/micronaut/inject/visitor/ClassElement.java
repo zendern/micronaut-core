@@ -33,4 +33,22 @@ public interface ClassElement extends Element {
      * @return The class name without the package
      */
     String getSimpleName();
+
+    /**
+     * Tests whether one type is assignable to another.
+     *
+     * @param type The type to check
+     * @return {@code true} if and only if the this type is assignable to the second
+     */
+    boolean isAssignable(String type);
+
+    /**
+     * Tests whether one type is assignable to another.
+     *
+     * @param type The type to check
+     * @return {@code true} if and only if the this type is assignable to the second
+     */
+    default boolean isAssignable(Class<?> type) {
+        return isAssignable(type.getName());
+    }
 }
