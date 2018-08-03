@@ -26,6 +26,17 @@ import io.micronaut.inject.visitor.ClassElement;
  * @since 1.0
  */
 final class JavaVoidElement implements ClassElement, AnnotationMetadataDelegate {
+
+    @Override
+    public boolean isInnerClass() {
+        return false;
+    }
+
+    @Override
+    public String getSimpleName() {
+        return "void";
+    }
+
     @Override
     public boolean isAssignable(String type) {
         return "void".equals(type);

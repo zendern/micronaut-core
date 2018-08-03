@@ -36,6 +36,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.PathItem;
+import io.swagger.v3.oas.models.Paths;
 import io.swagger.v3.oas.models.media.Content;
 import io.swagger.v3.oas.models.media.MediaType;
 import io.swagger.v3.oas.models.media.Schema;
@@ -51,6 +52,7 @@ public class SwaggerOpenAPIVisitor implements TypeElementVisitor<Object, Object>
     OpenAPI openAPI;
     private Set<io.swagger.v3.oas.models.tags.Tag> openApiTags;
     private Components components = new Components();
+    private Paths paths;
     private OperationClassData operationClassData = new OperationClassData();
 
     private static final String GET_METHOD = "get";
@@ -73,46 +75,19 @@ public class SwaggerOpenAPIVisitor implements TypeElementVisitor<Object, Object>
             handleDefinition(element);
         }
 
-        if (element.hasDeclaredAnnotation(SecuritySchemes.class)) {
-            SecurityScheme[] securitySchemes = element.getValue(SecuritySchemes.class, "value", SecurityScheme[].class).orElse(new SecurityScheme[0]);
-            handleSecuritySchemes(securitySchemes);
-        }
-        if (element.hasDeclaredAnnotation(SecurityScheme.class)) {
-            handleSecuritySchemes(element.getDeclaredAnnotation(SecurityScheme.class));
-        }
-
-        if (element.hasDeclaredAnnotation(SecurityRequirements.class)) {
-            SecurityRequirement[] requirements = element.getValue(SecurityRequirements.class, "value", SecurityRequirement[].class).orElse(new SecurityRequirement[0]);
-            handleSecurityRequirements(requirements);
-        }
-        if (element.hasDeclaredAnnotation(SecurityRequirement.class)) {
-            handleSecurityRequirements(element.getDeclaredAnnotation(SecurityRequirement.class));
-        }
-
-        if (element.hasDeclaredAnnotation(Tags.class)) {
-            Tag[] tags = element.getValue(Tags.class, "value", Tag[].class).orElse(new Tag[0]);
-            handleTags(tags);
-        }
-        if (element.hasDeclaredAnnotation(Tag.class)) {
-            handleTags(element.getDeclaredAnnotation(Tag.class));
-        }
-
-        if (element.hasDeclaredAnnotation(Servers.class)) {
-            Server[] servers = element.getValue(Server.class, "value", Server[].class).orElse(new Server[0]);
-            handleServers(servers);
-        }
-        if (element.hasDeclaredAnnotation(Server.class)) {
-            handleServers(element.getDeclaredAnnotation(Server.class));
-        }
+        handleSecuritySchemes(getRepeatableAnnotations(element, SecuritySchemes.class, SecurityScheme.class));
+        handleSecurityRequirements(getRepeatableAnnotations(element, SecurityRequirements.class, SecurityRequirement.class));
+        handleTags(getRepeatableAnnotations(element, Tags.class, Tag.class));
+        handleServers(getRepeatableAnnotations(element, Servers.class, Server.class));
 
         if (element.hasDeclaredAnnotation(ExternalDocumentation.class)) {
-            handleExternalDocumentation(element.getDeclaredAnnotation(ExternalDocumentation.class));
+            handleExternalDocumentation(element.synthesizeDeclared(ExternalDocumentation.class));
         }
 
         Set<String> consumes = new HashSet<>();
         Set<String> produces = new HashSet<>();
         if (element.hasDeclaredAnnotation(Controller.class)) {
-            Controller controller = element.getDeclaredAnnotation(Controller.class);
+            Controller controller = element.synthesizeDeclared(Controller.class);
             if (StringUtils.isEmpty(controller.value())) {
                 operationClassData.setPath('/' + TypeConvention.CONTROLLER.asPropertyName(element.getName()));
             } else {
@@ -132,11 +107,11 @@ public class SwaggerOpenAPIVisitor implements TypeElementVisitor<Object, Object>
         @SuppressWarnings("unchecked")
         T[] singleTypeArray = (T[])Array.newInstance(singleType, 0);
         if (element.hasDeclaredAnnotation(repeatType)) {
-            return element.getValue(repeatType, "value", (Class<T[]>)singleTypeArray.getClass()).orElse(singleTypeArray);
+            return element.getValue(repeatType, (Class<T[]>)singleTypeArray.getClass()).orElse(singleTypeArray);
         }
         if (element.hasDeclaredAnnotation(singleType)) {
             T[] array = (T[])Array.newInstance(singleType, 1);
-            array[0] = element.getDeclaredAnnotation(singleType);
+            array[0] = element.synthesizeDeclared(singleType);
             return array;
         }
         return singleTypeArray;
@@ -154,6 +129,7 @@ public class SwaggerOpenAPIVisitor implements TypeElementVisitor<Object, Object>
                 io.swagger.v3.oas.models.Operation operation = new io.swagger.v3.oas.models.Operation();
 
                 path = StringUtils.prependUri(operationClassData.path, path);
+                String httpMethod = element.getAnnotationTypeByStereotype(HttpMethodMapping.class).get().getSimpleName().toUpperCase();
 
                 String[] consumes = element.getValue(Consumes.class, String[].class)
                         .orElseGet(() -> {
@@ -164,15 +140,15 @@ public class SwaggerOpenAPIVisitor implements TypeElementVisitor<Object, Object>
                             return element.getValue(HttpMethodMapping.class, "produces", String[].class).orElse(operationClassData.produces);
                         });
 
-                Operation apiOperation = element.getDeclaredAnnotation(Operation.class);
+                Operation apiOperation = element.synthesizeDeclared(Operation.class);
                 SecurityRequirement[] apiSecurity = getRepeatableAnnotations(element, SecurityRequirements.class, SecurityRequirement.class);
                 Callback[] apiCallbacks = getRepeatableAnnotations(element, Callbacks.class, Callback.class);
                 Server[] apiServers = getRepeatableAnnotations(element, Servers.class, Server.class);
                 Tag[] apiTags = getRepeatableAnnotations(element, Tags.class, Tag.class);
                 Parameter[] apiParameters = getRepeatableAnnotations(element, Parameters.class, Parameter.class);
                 ApiResponse[] apiResponses = getRepeatableAnnotations(element, ApiResponses.class, ApiResponse.class);
-                RequestBody apiRequestBody = element.getDeclaredAnnotation(RequestBody.class);
-                ExternalDocumentation apiExternalDocumentation = element.getDeclaredAnnotation(ExternalDocumentation.class);
+                RequestBody apiRequestBody = element.synthesizeDeclared(RequestBody.class);
+                ExternalDocumentation apiExternalDocumentation = element.synthesizeDeclared(ExternalDocumentation.class);
 
 
                 // callbacks
@@ -226,6 +202,7 @@ public class SwaggerOpenAPIVisitor implements TypeElementVisitor<Object, Object>
                     }
                 }
 
+                /*
                 if (apiParameters != null) {
                     getParametersListFromAnnotation(
                             apiParameters.toArray(new io.swagger.v3.oas.annotations.Parameter[apiParameters.size()]),
@@ -363,7 +340,23 @@ public class SwaggerOpenAPIVisitor implements TypeElementVisitor<Object, Object>
                     operation.setResponses(new ApiResponses()._default(apiResponseObject));
                 }
 
+*/
+                PathItem pathItemObject;
+                if (openAPI.getPaths() != null && openAPI.getPaths().get(path) != null) {
+                    pathItemObject = openAPI.getPaths().get(path);
+                } else {
+                    pathItemObject = new PathItem();
+                }
 
+
+                setPathItemOperation(pathItemObject, httpMethod, operation);
+
+                paths.addPathItem(path, pathItemObject);
+                if (openAPI.getPaths() != null) {
+                    this.paths.putAll(openAPI.getPaths());
+                }
+
+                openAPI.setPaths(this.paths);
             });
         }
 
@@ -608,6 +601,7 @@ public class SwaggerOpenAPIVisitor implements TypeElementVisitor<Object, Object>
     @Override
     public void start(VisitorContext visitorContext) {
         openAPI = new OpenAPI();
+        paths = new Paths();
     }
 
     @Override
@@ -633,7 +627,7 @@ public class SwaggerOpenAPIVisitor implements TypeElementVisitor<Object, Object>
     }
 
     void handleDefinition(ClassElement element) {
-        OpenAPIDefinition definition = element.getDeclaredAnnotation(OpenAPIDefinition.class);
+        OpenAPIDefinition definition = element.synthesizeDeclared(OpenAPIDefinition.class);
         AnnotationsUtils.getInfo(definition.info()).ifPresent((info) -> openAPI.setInfo(info));
         SecurityParser
                 .getSecurityRequirements(definition.security())
