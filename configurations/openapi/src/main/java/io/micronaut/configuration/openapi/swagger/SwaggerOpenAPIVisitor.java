@@ -8,9 +8,6 @@ import io.micronaut.http.annotation.Controller;
 import io.micronaut.http.annotation.HttpMethodMapping;
 import io.micronaut.http.annotation.Produces;
 import io.micronaut.inject.visitor.*;
-import io.swagger.v3.core.converter.AnnotatedType;
-import io.swagger.v3.core.converter.ModelConverters;
-import io.swagger.v3.core.converter.ResolvedSchema;
 import io.swagger.v3.core.util.AnnotationsUtils;
 import io.swagger.v3.core.util.ParameterProcessor;
 import io.swagger.v3.core.util.Yaml;
@@ -37,9 +34,6 @@ import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.PathItem;
 import io.swagger.v3.oas.models.Paths;
-import io.swagger.v3.oas.models.media.Content;
-import io.swagger.v3.oas.models.media.MediaType;
-import io.swagger.v3.oas.models.media.Schema;
 
 import java.io.Writer;
 import java.lang.annotation.Annotation;
@@ -49,10 +43,10 @@ import java.util.*;
 
 public class SwaggerOpenAPIVisitor implements TypeElementVisitor<Object, Object> {
 
-    OpenAPI openAPI;
-    private Set<io.swagger.v3.oas.models.tags.Tag> openApiTags;
+    private OpenAPI openAPI;
+    private Set<io.swagger.v3.oas.models.tags.Tag> openApiTags = new LinkedHashSet<>();
     private Components components = new Components();
-    private Paths paths;
+    private Paths paths = new Paths();
     private OperationClassData operationClassData = new OperationClassData();
 
     private static final String GET_METHOD = "get";
@@ -168,11 +162,9 @@ public class SwaggerOpenAPIVisitor implements TypeElementVisitor<Object, Object>
                 operationClassData.securityRequirements.forEach(operation::addSecurityItem);
                 if (apiSecurity != null) {
                     Optional<List<io.swagger.v3.oas.models.security.SecurityRequirement>> requirementsObject = io.swagger.v3.jaxrs2.SecurityParser.getSecurityRequirements(apiSecurity);
-                    if (requirementsObject.isPresent()) {
-                        requirementsObject.get().stream()
-                                .filter(r -> operation.getSecurity() == null || !operation.getSecurity().contains(r))
-                                .forEach(operation::addSecurityItem);
-                    }
+                    requirementsObject.ifPresent(securityRequirements -> securityRequirements.stream()
+                            .filter(r -> operation.getSecurity() == null || !operation.getSecurity().contains(r))
+                            .forEach(operation::addSecurityItem));
                 }
 
                 operationClassData.servers.forEach(operation::addServersItem);
@@ -492,11 +484,10 @@ public class SwaggerOpenAPIVisitor implements TypeElementVisitor<Object, Object>
 
         // security
         Optional<List<io.swagger.v3.oas.models.security.SecurityRequirement>> requirementsObject = SecurityParser.getSecurityRequirements(apiOperation.security());
-        if (requirementsObject.isPresent()) {
-            requirementsObject.get().stream()
-                    .filter(r -> operation.getSecurity() == null || !operation.getSecurity().contains(r))
-                    .forEach(operation::addSecurityItem);
-        }
+
+        requirementsObject.ifPresent(securityRequirements -> securityRequirements.stream()
+                .filter(r -> operation.getSecurity() == null || !operation.getSecurity().contains(r))
+                .forEach(operation::addSecurityItem));
 
         // RequestBody in Operation
         if (apiOperation != null && apiOperation.requestBody() != null && operation.getRequestBody() == null) {
@@ -507,10 +498,8 @@ public class SwaggerOpenAPIVisitor implements TypeElementVisitor<Object, Object>
         // Extensions in Operation
         if (apiOperation.extensions().length > 0) {
             Map<String, Object> extensions = AnnotationsUtils.getExtensions(apiOperation.extensions());
-            if (extensions != null) {
-                for (String ext : extensions.keySet()) {
-                    operation.addExtension(ext, extensions.get(ext));
-                }
+            for (String ext : extensions.keySet()) {
+                operation.addExtension(ext, extensions.get(ext));
             }
         }
     }
@@ -601,7 +590,6 @@ public class SwaggerOpenAPIVisitor implements TypeElementVisitor<Object, Object>
     @Override
     public void start(VisitorContext visitorContext) {
         openAPI = new OpenAPI();
-        paths = new Paths();
     }
 
     @Override
