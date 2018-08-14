@@ -71,7 +71,7 @@ class GroovyAnnotationMetadataBuilder extends AbstractAnnotationMetadataBuilder<
     @Override
     protected Optional<AnnotatedNode> getAnnotationMirror(String annotationName) {
         ClassNode cn = ClassUtils.forName(annotationName, GroovyAnnotationMetadataBuilder.classLoader).map({ Class cls -> ClassHelper.make(cls)}).orElseGet({->ClassHelper.make(annotationName)})
-        return Optional.of(cn)
+        return Optional.of((AnnotatedNode)cn)
     }
 
     @Override
@@ -143,6 +143,8 @@ class GroovyAnnotationMetadataBuilder extends AbstractAnnotationMetadataBuilder<
             List<MethodNode> methods = new ArrayList<>(classNode.getMethods())
             Map<? extends AnnotatedNode, Expression> defaultValues = new HashMap<>()
 
+            // TODO: Remove this branch of the code after upgrading to Groovy 3.0
+            // https://issues.apache.org/jira/browse/GROOVY-8696
             if (classNode.isResolved()) {
                 Class resolved = classNode.getTypeClass()
                 for (MethodNode method: methods) {

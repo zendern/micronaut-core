@@ -283,13 +283,14 @@ public class RequiresCondition implements Condition {
         if (conditionClass == TrueCondition.class) {
             return true;
         } else if (conditionClass != null) {
-            try {
-                boolean conditionResult = conditionClass.newInstance().matches(context);
+            Optional<? extends Condition> condition = InstantiationUtils.tryInstantiate(conditionClass);
+            if (condition.isPresent()) {
+                boolean conditionResult = condition.get().matches(context);
                 if (!conditionResult) {
                     context.fail("Custom condition [" + conditionClass + "] failed evaluation");
                 }
                 return conditionResult;
-            } catch (Throwable e) {
+            } else {
                 // maybe a Groovy closure
                 Optional<Constructor<?>> constructor = ReflectionUtils.findConstructor((Class) conditionClass, Object.class, Object.class);
                 boolean conditionResult = constructor.flatMap(ctor ->
@@ -431,7 +432,7 @@ public class RequiresCondition implements Condition {
                             Environment environment = applicationContext.getEnvironment();
                             Class annotationType = type.get();
                             if (!environment.scan(annotationType).findFirst().isPresent()) {
-                                context.fail("No entities found on classpath");
+                                context.fail("No entities found in packages [" + String.join(", ", environment.getPackages()) + "]");
                                 return false;
                             }
                         }
