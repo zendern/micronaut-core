@@ -10,7 +10,6 @@ import io.micronaut.http.annotation.Produces;
 import io.micronaut.inject.visitor.*;
 import io.swagger.v3.core.util.AnnotationsUtils;
 import io.swagger.v3.core.util.ParameterProcessor;
-import io.swagger.v3.core.util.Yaml;
 import io.swagger.v3.jaxrs2.OperationParser;
 import io.swagger.v3.jaxrs2.ResolvedParameter;
 import io.swagger.v3.jaxrs2.ext.OpenAPIExtension;
@@ -82,11 +81,7 @@ public class SwaggerOpenAPIVisitor implements TypeElementVisitor<Object, Object>
         Set<String> produces = new HashSet<>();
         if (element.hasDeclaredAnnotation(Controller.class)) {
             Controller controller = element.synthesizeDeclared(Controller.class);
-            if (StringUtils.isEmpty(controller.value())) {
-                operationClassData.setPath('/' + TypeConvention.CONTROLLER.asPropertyName(element.getName()));
-            } else {
-                operationClassData.setPath(controller.value());
-            }
+            operationClassData.setPath(controller.value());
             consumes.addAll(Arrays.asList(controller.consumes()));
             produces.addAll(Arrays.asList(controller.produces()));
         }
@@ -97,19 +92,7 @@ public class SwaggerOpenAPIVisitor implements TypeElementVisitor<Object, Object>
         operationClassData.setProduces(produces.toArray(new String[0]));
     }
 
-    <T extends Annotation> T[] getRepeatableAnnotations(Element element, Class<? extends Annotation> repeatType, Class<T> singleType) {
-        @SuppressWarnings("unchecked")
-        T[] singleTypeArray = (T[])Array.newInstance(singleType, 0);
-        if (element.hasDeclaredAnnotation(repeatType)) {
-            return element.getValue(repeatType, (Class<T[]>)singleTypeArray.getClass()).orElse(singleTypeArray);
-        }
-        if (element.hasDeclaredAnnotation(singleType)) {
-            T[] array = (T[])Array.newInstance(singleType, 1);
-            array[0] = element.synthesizeDeclared(singleType);
-            return array;
-        }
-        return singleTypeArray;
-    }
+
 
     @Override
     public void visitMethod(MethodElement element, VisitorContext context) {
@@ -354,6 +337,57 @@ public class SwaggerOpenAPIVisitor implements TypeElementVisitor<Object, Object>
 
     }
 
+    @Override
+    public void visitField(FieldElement element, VisitorContext context) {
+
+    }
+
+    @Override
+    public void start(VisitorContext visitorContext) {
+        openAPI = new OpenAPI();
+    }
+
+    @Override
+    public void finish(VisitorContext visitorContext) {
+
+        if (!components.equals(new Components()) && openAPI.getComponents() == null) {
+            openAPI.setComponents(components);
+        }
+
+        if (!openApiTags.isEmpty()) {
+            Set<io.swagger.v3.oas.models.tags.Tag> tagsSet = new TreeSet<>(Comparator.comparing(io.swagger.v3.oas.models.tags.Tag::getName));
+            if (openAPI.getTags() != null) {
+                tagsSet.addAll(openAPI.getTags());
+            }
+            tagsSet.addAll(openApiTags);
+            openAPI.setTags(new ArrayList<>(tagsSet));
+        }
+
+        try {
+            Writer writer = visitorContext.createDistFile("", "openapi.yaml");
+
+            //after jackson-databind supports snakeyaml >= 1.2, this can be replaced with
+            //io.swagger.v3.core.util.Yaml.pretty().writeValue(writer, openAPI);
+            io.micronaut.configuration.openapi.swagger.Yaml.pretty().writeValue(writer, openAPI);
+        } catch (Throwable e) {
+            visitorContext.warn("Could not write the open api document", null);
+        }
+    }
+
+    <T extends Annotation> T[] getRepeatableAnnotations(Element element, Class<? extends Annotation> repeatType, Class<T> singleType) {
+        @SuppressWarnings("unchecked")
+        T[] singleTypeArray = (T[])Array.newInstance(singleType, 0);
+        if (element.hasDeclaredAnnotation(repeatType)) {
+            return element.getValue(repeatType, (Class<T[]>)singleTypeArray.getClass()).orElse(singleTypeArray);
+        }
+        if (element.hasDeclaredAnnotation(singleType)) {
+            T[] array = (T[])Array.newInstance(singleType, 1);
+            array[0] = element.synthesizeDeclared(singleType);
+            return array;
+        }
+        return singleTypeArray;
+    }
+
     private Map<String, io.swagger.v3.oas.models.callbacks.Callback> getCallbacks(
             io.swagger.v3.oas.annotations.callbacks.Callback apiCallback,
             String[] produces,
@@ -580,38 +614,6 @@ public class SwaggerOpenAPIVisitor implements TypeElementVisitor<Object, Object>
             return path.getPatch().getOperationId();
         }
         return "";
-    }
-
-    @Override
-    public void visitField(FieldElement element, VisitorContext context) {
-
-    }
-
-    @Override
-    public void start(VisitorContext visitorContext) {
-        openAPI = new OpenAPI();
-    }
-
-    @Override
-    public void finish(VisitorContext visitorContext) {
-
-        if (!components.equals(new Components()) && openAPI.getComponents() == null) {
-            openAPI.setComponents(components);
-        }
-
-        if (!openApiTags.isEmpty()) {
-            Set<io.swagger.v3.oas.models.tags.Tag> tagsSet = new TreeSet<>(Comparator.comparing(io.swagger.v3.oas.models.tags.Tag::getName));
-            tagsSet.addAll(openAPI.getTags());
-            tagsSet.addAll(openApiTags);
-            openAPI.setTags(new ArrayList<>(tagsSet));
-        }
-
-        try {
-            Writer writer = visitorContext.createDistFile("", "openapi.yaml");
-            Yaml.pretty().writeValue(writer, openAPI);
-        } catch (Exception e) {
-            visitorContext.warn("Could not write the open api document", null);
-        }
     }
 
     void handleDefinition(ClassElement element) {
