@@ -79,14 +79,18 @@ public class SwaggerOpenAPIVisitor implements TypeElementVisitor<Object, Object>
 
         Set<String> consumes = new HashSet<>();
         Set<String> produces = new HashSet<>();
+        element.getValue(Consumes.class, String[].class).ifPresent(c -> consumes.addAll(Arrays.asList(c)));
+        element.getValue(Produces.class, String[].class).ifPresent(p -> produces.addAll(Arrays.asList(p)));
         if (element.hasDeclaredAnnotation(Controller.class)) {
             Controller controller = element.synthesizeDeclared(Controller.class);
             operationClassData.setPath(controller.value());
-            consumes.addAll(Arrays.asList(controller.consumes()));
-            produces.addAll(Arrays.asList(controller.produces()));
+            if (consumes.isEmpty()) {
+                consumes.addAll(Arrays.asList(controller.consumes()));
+            }
+            if (produces.isEmpty()) {
+                produces.addAll(Arrays.asList(controller.produces()));
+            }
         }
-        element.getValue(Consumes.class, String[].class).ifPresent(c -> consumes.addAll(Arrays.asList(c)));
-        element.getValue(Produces.class, String[].class).ifPresent(p -> produces.addAll(Arrays.asList(p)));
 
         operationClassData.setConsumes(consumes.toArray(new String[0]));
         operationClassData.setProduces(produces.toArray(new String[0]));
@@ -126,14 +130,17 @@ public class SwaggerOpenAPIVisitor implements TypeElementVisitor<Object, Object>
                 ApiResponse[] apiResponses = getRepeatableAnnotations(element, ApiResponses.class, ApiResponse.class);
                 RequestBody apiRequestBody = element.synthesizeDeclared(RequestBody.class);
                 ExternalDocumentation apiExternalDocumentation = element.synthesizeDeclared(ExternalDocumentation.class);
-
+                JsonView jsonViewAnnotation = element.synthesizeDeclared(JsonView.class);
+                if (apiOperation != null && apiOperation.ignoreJsonView()) {
+                    jsonViewAnnotation = null;
+                }
 
                 // callbacks
                 Map<String, io.swagger.v3.oas.models.callbacks.Callback> callbacks = new LinkedHashMap<>();
 
                 if (apiCallbacks != null) {
                     for (Callback methodCallback : apiCallbacks) {
-                        Map<String, io.swagger.v3.oas.models.callbacks.Callback> currentCallbacks = getCallbacks(methodCallback, produces, consumes, null);
+                        Map<String, io.swagger.v3.oas.models.callbacks.Callback> currentCallbacks = getCallbacks(methodCallback, produces, consumes, jsonViewAnnotation);
                         callbacks.putAll(currentCallbacks);
                     }
                 }
@@ -177,16 +184,16 @@ public class SwaggerOpenAPIVisitor implements TypeElementVisitor<Object, Object>
                     }
                 }
 
-                /*
+
                 if (apiParameters != null) {
                     getParametersListFromAnnotation(
-                            apiParameters.toArray(new io.swagger.v3.oas.annotations.Parameter[apiParameters.size()]),
-                            classConsumes,
-                            methodConsumes,
+                            apiParameters,
+                            null,
+                            consumes,
                             operation,
                             jsonViewAnnotation).ifPresent(p -> p.forEach(operation::addParametersItem));
                 }
-
+/*
                 // RequestBody in Method
                 if (apiRequestBody != null && operation.getRequestBody() == null){
                     OperationParser.getRequestBody(apiRequestBody, classConsumes, methodConsumes, components, jsonViewAnnotation).ifPresent(
