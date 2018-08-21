@@ -150,7 +150,7 @@ public class SwaggerOpenAPIVisitor implements TypeElementVisitor<Object, Object>
 
                 if (apiCallbacks != null) {
                     for (Callback methodCallback : apiCallbacks) {
-                        Map<String, io.swagger.v3.oas.models.callbacks.Callback> currentCallbacks = getCallbacks(methodCallback, produces, consumes, jsonViewAnnotation);
+                        Map<String, io.swagger.v3.oas.models.callbacks.Callback> currentCallbacks = getCallbacks(methodCallback, producesAnnotation, consumesAnnotation, jsonViewAnnotation);
                         callbacks.putAll(currentCallbacks);
                     }
                 }
@@ -267,7 +267,7 @@ public class SwaggerOpenAPIVisitor implements TypeElementVisitor<Object, Object>
 
                 // handle return type, add as response in case.
                 ClassElement returnType = element.getReturnType();
-                if (!shouldIgnoreClass(returnType.getTypeName()) && !returnType.equals(subResource)) {
+                if (false) {
                     ResolvedSchema resolvedSchema = ModelConverters.getInstance().resolveAsResolvedSchema(new AnnotatedType(new Type() {
                         @Override
                         public String getTypeName() {
@@ -393,8 +393,8 @@ public class SwaggerOpenAPIVisitor implements TypeElementVisitor<Object, Object>
 
     private Map<String, io.swagger.v3.oas.models.callbacks.Callback> getCallbacks(
             io.swagger.v3.oas.annotations.callbacks.Callback apiCallback,
-            String[] produces,
-            String[] consumes,
+            javax.ws.rs.Produces produces,
+            javax.ws.rs.Consumes consumes,
             JsonView jsonViewAnnotation) {
         Map<String, io.swagger.v3.oas.models.callbacks.Callback> callbackMap = new HashMap<>();
         if (apiCallback == null) {
