@@ -1,16 +1,19 @@
 package io.micronaut.configuration.openapi.swagger;
 
 import com.fasterxml.jackson.annotation.JsonView;
-import io.micronaut.core.naming.conventions.TypeConvention;
 import io.micronaut.core.util.StringUtils;
 import io.micronaut.http.annotation.Consumes;
 import io.micronaut.http.annotation.Controller;
 import io.micronaut.http.annotation.HttpMethodMapping;
 import io.micronaut.http.annotation.Produces;
 import io.micronaut.inject.visitor.*;
+import io.swagger.v3.core.converter.AnnotatedType;
+import io.swagger.v3.core.converter.ModelConverters;
+import io.swagger.v3.core.converter.ResolvedSchema;
 import io.swagger.v3.core.util.AnnotationsUtils;
 import io.swagger.v3.core.util.ParameterProcessor;
 import io.swagger.v3.jaxrs2.OperationParser;
+import io.swagger.v3.jaxrs2.Reader;
 import io.swagger.v3.jaxrs2.ResolvedParameter;
 import io.swagger.v3.jaxrs2.ext.OpenAPIExtension;
 import io.swagger.v3.jaxrs2.ext.OpenAPIExtensions;
@@ -33,6 +36,9 @@ import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.PathItem;
 import io.swagger.v3.oas.models.Paths;
+import io.swagger.v3.oas.models.media.Content;
+import io.swagger.v3.oas.models.media.MediaType;
+import io.swagger.v3.oas.models.media.Schema;
 
 import java.io.Writer;
 import java.lang.annotation.Annotation;
@@ -94,6 +100,7 @@ public class SwaggerOpenAPIVisitor implements TypeElementVisitor<Object, Object>
 
         operationClassData.setConsumes(consumes.toArray(new String[0]));
         operationClassData.setProduces(produces.toArray(new String[0]));
+        operationClassData.setApiResponses(getRepeatableAnnotations(element, ApiResponses.class, ApiResponse.class));
     }
 
 
@@ -120,6 +127,9 @@ public class SwaggerOpenAPIVisitor implements TypeElementVisitor<Object, Object>
                         .orElseGet(() -> {
                             return element.getValue(HttpMethodMapping.class, "produces", String[].class).orElse(operationClassData.produces);
                         });
+
+                javax.ws.rs.Consumes consumesAnnotation = synthesizeConsumes(consumes);
+                javax.ws.rs.Produces producesAnnotation = synthesizeProduces(produces);
 
                 Operation apiOperation = element.synthesizeDeclared(Operation.class);
                 SecurityRequirement[] apiSecurity = getRepeatableAnnotations(element, SecurityRequirements.class, SecurityRequirement.class);
@@ -188,29 +198,27 @@ public class SwaggerOpenAPIVisitor implements TypeElementVisitor<Object, Object>
                 if (apiParameters != null) {
                     getParametersListFromAnnotation(
                             apiParameters,
-                            null,
-                            consumes,
-                            operation,
+                            consumesAnnotation,
                             jsonViewAnnotation).ifPresent(p -> p.forEach(operation::addParametersItem));
                 }
-/*
+
                 // RequestBody in Method
                 if (apiRequestBody != null && operation.getRequestBody() == null){
-                    OperationParser.getRequestBody(apiRequestBody, classConsumes, methodConsumes, components, jsonViewAnnotation).ifPresent(
+                    OperationParser.getRequestBody(apiRequestBody, null, consumesAnnotation, components, jsonViewAnnotation).ifPresent(
                             operation::setRequestBody);
                 }
 
                 // operation id
                 if (StringUtils.isEmpty(operation.getOperationId())) {
-                    operation.setOperationId(getOperationId(method.getName()));
+                    operation.setOperationId(getOperationId(element.getName()));
                 }
 
                 // classResponses
-                if (classResponses != null && classResponses.length > 0) {
+                if (operationClassData.apiResponses != null && operationClassData.apiResponses.length > 0) {
                     OperationParser.getApiResponses(
-                            classResponses,
-                            classProduces,
-                            methodProduces,
+                            null,
+                            null,
+                            producesAnnotation,
                             components,
                             jsonViewAnnotation
                     ).ifPresent(responses -> {
@@ -223,15 +231,15 @@ public class SwaggerOpenAPIVisitor implements TypeElementVisitor<Object, Object>
                 }
 
                 if (apiOperation != null) {
-                    setOperationObjectFromApiOperationAnnotation(operation, apiOperation, methodProduces, classProduces, methodConsumes, classConsumes, jsonViewAnnotation);
+                    setOperationObjectFromApiOperationAnnotation(operation, apiOperation, producesAnnotation, consumesAnnotation, jsonViewAnnotation);
                 }
 
                 // apiResponses
-                if (apiResponses != null && apiResponses.size() > 0) {
+                if (apiResponses != null && apiResponses.length > 0) {
                     OperationParser.getApiResponses(
-                            apiResponses.toArray(new io.swagger.v3.oas.annotations.responses.ApiResponse[apiResponses.size()]),
-                            classProduces,
-                            methodProduces,
+                            apiResponses,
+                            null,
+                            producesAnnotation,
                             components,
                             jsonViewAnnotation
                     ).ifPresent(responses -> {
@@ -244,57 +252,43 @@ public class SwaggerOpenAPIVisitor implements TypeElementVisitor<Object, Object>
                 }
 
                 // class tags after tags defined as field of @Operation
-                if (classTags != null) {
-                    classTags.stream()
+                if (operationClassData.tags != null) {
+                    operationClassData.tags.stream()
                             .filter(t -> operation.getTags() == null || (operation.getTags() != null && !operation.getTags().contains(t)))
+                            .map(io.swagger.v3.oas.models.tags.Tag::getName)
                             .forEach(operation::addTagsItem);
                 }
 
                 // external docs of class if not defined in annotation of method or as field of Operation annotation
                 if (operation.getExternalDocs() == null) {
-                    classExternalDocs.ifPresent(operation::setExternalDocs);
+                    Optional.ofNullable(operationClassData.externalDocumentation).ifPresent(operation::setExternalDocs);
                 }
 
-                // if subresource, merge parent requestBody
-                if (isSubresource && parentRequestBody != null) {
-                    if (operation.getRequestBody() == null) {
-                        operation.requestBody(parentRequestBody);
-                    } else {
-                        Content content = operation.getRequestBody().getContent();
-                        if (content == null) {
-                            content = parentRequestBody.getContent();
-                            operation.getRequestBody().setContent(content);
-                        } else if (parentRequestBody.getContent() != null){
-                            for (String parentMediaType: parentRequestBody.getContent().keySet()) {
-                                if (content.get(parentMediaType) == null) {
-                                    content.addMediaType(parentMediaType, parentRequestBody.getContent().get(parentMediaType));
-                                }
-                            }
-                        }
-                    }
-                }
 
                 // handle return type, add as response in case.
-                Type returnType = method.getGenericReturnType();
-                final Class<?> subResource = getSubResourceWithJaxRsSubresourceLocatorSpecs(method);
+                ClassElement returnType = element.getReturnType();
                 if (!shouldIgnoreClass(returnType.getTypeName()) && !returnType.equals(subResource)) {
-                    ResolvedSchema resolvedSchema = ModelConverters.getInstance().resolveAsResolvedSchema(new AnnotatedType(returnType).resolveAsRef(true).jsonViewAnnotation(jsonViewAnnotation));
+                    ResolvedSchema resolvedSchema = ModelConverters.getInstance().resolveAsResolvedSchema(new AnnotatedType(new Type() {
+                        @Override
+                        public String getTypeName() {
+                            return returnType.getName();
+                        }
+                    }).resolveAsRef(true).jsonViewAnnotation(jsonViewAnnotation));
                     if (resolvedSchema.schema != null) {
                         Schema returnTypeSchema = resolvedSchema.schema;
                         Content content = new Content();
                         MediaType mediaType = new MediaType().schema(returnTypeSchema);
-                        AnnotationsUtils.applyTypes(classProduces == null ? new String[0] : classProduces.value(),
-                                methodProduces == null ? new String[0] : methodProduces.value(), content, mediaType);
+                        AnnotationsUtils.applyTypes(null, produces, content, mediaType);
                         if (operation.getResponses() == null) {
                             operation.responses(
-                                    new ApiResponses()._default(
-                                            new ApiResponse().description(DEFAULT_DESCRIPTION)
+                                    new io.swagger.v3.oas.models.responses.ApiResponses()._default(
+                                            new io.swagger.v3.oas.models.responses.ApiResponse().description(Reader.DEFAULT_DESCRIPTION)
                                                     .content(content)
                                     )
                             );
                         }
                         if (operation.getResponses().getDefault() != null &&
-                                StringUtils.isBlank(operation.getResponses().getDefault().get$ref())) {
+                                StringUtils.isEmpty(operation.getResponses().getDefault().get$ref())) {
                             if (operation.getResponses().getDefault().getContent() == null) {
                                 operation.getResponses().getDefault().content(content);
                             } else {
@@ -312,6 +306,8 @@ public class SwaggerOpenAPIVisitor implements TypeElementVisitor<Object, Object>
 
                     }
                 }
+                /*
+
                 if (operation.getResponses() == null || operation.getResponses().isEmpty()) {
                     Content content = new Content();
                     MediaType mediaType = new MediaType();
@@ -458,8 +454,8 @@ public class SwaggerOpenAPIVisitor implements TypeElementVisitor<Object, Object>
     private void setOperationObjectFromApiOperationAnnotation(
             io.swagger.v3.oas.models.Operation operation,
             io.swagger.v3.oas.annotations.Operation apiOperation,
-            String[] produces,
-            String[] consumes,
+            javax.ws.rs.Produces produces,
+            javax.ws.rs.Consumes consumes,
             JsonView jsonViewAnnotation) {
         if (StringUtils.isNotEmpty(apiOperation.summary())) {
             operation.setSummary(apiOperation.summary());
@@ -484,31 +480,7 @@ public class SwaggerOpenAPIVisitor implements TypeElementVisitor<Object, Object>
             AnnotationsUtils.getExternalDocumentation(apiOperation.externalDocs()).ifPresent(operation::setExternalDocs);
         }
 
-        javax.ws.rs.Produces producesAnnotation = new javax.ws.rs.Produces() {
-            @Override
-            public Class<? extends Annotation> annotationType() {
-                return javax.ws.rs.Produces.class;
-            }
-
-            @Override
-            public String[] value() {
-                return produces;
-            }
-        };
-
-        javax.ws.rs.Consumes consumesAnnotation = new javax.ws.rs.Consumes() {
-            @Override
-            public Class<? extends Annotation> annotationType() {
-                return javax.ws.rs.Consumes.class;
-            }
-
-            @Override
-            public String[] value() {
-                return consumes;
-            }
-        };
-
-        OperationParser.getApiResponses(apiOperation.responses(), null, producesAnnotation, components, jsonViewAnnotation).ifPresent(responses -> {
+        OperationParser.getApiResponses(apiOperation.responses(), null, produces, components, jsonViewAnnotation).ifPresent(responses -> {
             if (operation.getResponses() == null) {
                 operation.setResponses(responses);
             } else {
@@ -519,8 +491,7 @@ public class SwaggerOpenAPIVisitor implements TypeElementVisitor<Object, Object>
 
         getParametersListFromAnnotation(
                 apiOperation.parameters(),
-                null,
-                consumesAnnotation,
+                consumes,
                 jsonViewAnnotation).ifPresent(p -> p.forEach(operation::addParametersItem));
 
         // security
@@ -532,7 +503,7 @@ public class SwaggerOpenAPIVisitor implements TypeElementVisitor<Object, Object>
 
         // RequestBody in Operation
         if (apiOperation != null && apiOperation.requestBody() != null && operation.getRequestBody() == null) {
-            OperationParser.getRequestBody(apiOperation.requestBody(), null, consumesAnnotation, components, jsonViewAnnotation).ifPresent(
+            OperationParser.getRequestBody(apiOperation.requestBody(), null, consumes, components, jsonViewAnnotation).ifPresent(
                     requestBodyObject -> operation.setRequestBody(requestBodyObject));
         }
 
@@ -545,14 +516,14 @@ public class SwaggerOpenAPIVisitor implements TypeElementVisitor<Object, Object>
         }
     }
 
-    protected Optional<List<io.swagger.v3.oas.models.parameters.Parameter>> getParametersListFromAnnotation(Parameter[] parameters, javax.ws.rs.Consumes classConsumes, javax.ws.rs.Consumes methodConsumes, JsonView jsonViewAnnotation) {
+    protected Optional<List<io.swagger.v3.oas.models.parameters.Parameter>> getParametersListFromAnnotation(Parameter[] parameters, javax.ws.rs.Consumes consumes, JsonView jsonViewAnnotation) {
         if (parameters == null) {
             return Optional.empty();
         }
         List<io.swagger.v3.oas.models.parameters.Parameter> parametersObject = new ArrayList<>();
         for (io.swagger.v3.oas.annotations.Parameter parameter : parameters) {
 
-            ResolvedParameter resolvedParameter = getParameters(ParameterProcessor.getParameterType(parameter), Collections.singletonList(parameter), classConsumes, methodConsumes, jsonViewAnnotation);
+            ResolvedParameter resolvedParameter = getParameters(ParameterProcessor.getParameterType(parameter), Collections.singletonList(parameter), consumes, jsonViewAnnotation);
             parametersObject.addAll(resolvedParameter.parameters);
         }
         if (parametersObject.size() == 0) {
@@ -561,8 +532,7 @@ public class SwaggerOpenAPIVisitor implements TypeElementVisitor<Object, Object>
         return Optional.of(parametersObject);
     }
 
-    protected ResolvedParameter getParameters(Type type, List<Annotation> annotations, javax.ws.rs.Consumes classConsumes,
-                                              javax.ws.rs.Consumes methodConsumes, JsonView jsonViewAnnotation) {
+    protected ResolvedParameter getParameters(Type type, List<Annotation> annotations, javax.ws.rs.Consumes consumes, JsonView jsonViewAnnotation) {
         final Iterator<OpenAPIExtension> chain = OpenAPIExtensions.chain();
         if (!chain.hasNext()) {
             return new ResolvedParameter();
@@ -570,7 +540,7 @@ public class SwaggerOpenAPIVisitor implements TypeElementVisitor<Object, Object>
         Set<Type> typesToSkip = new HashSet<>();
         final OpenAPIExtension extension = chain.next();
 
-        return extension.extractParameters(annotations, type, typesToSkip, components, classConsumes, methodConsumes, true, jsonViewAnnotation, chain);
+        return extension.extractParameters(annotations, type, typesToSkip, components, null, consumes, true, jsonViewAnnotation, chain);
     }
 
     protected String getOperationId(String operationId) {
@@ -695,6 +665,7 @@ public class SwaggerOpenAPIVisitor implements TypeElementVisitor<Object, Object>
         String path = null;
         String[] consumes = null;
         String[] produces = null;
+        ApiResponse[] apiResponses = null;
 
         OperationClassData() {
 
@@ -727,6 +698,38 @@ public class SwaggerOpenAPIVisitor implements TypeElementVisitor<Object, Object>
         void setProduces(String[] produces) {
             this.produces = produces;
         }
+
+        void setApiResponses(ApiResponse[] apiResponses) {
+            this.apiResponses = apiResponses;
+        }
+    }
+
+    javax.ws.rs.Consumes synthesizeConsumes(String[] consumes) {
+        return new javax.ws.rs.Consumes() {
+            @Override
+            public Class<? extends Annotation> annotationType() {
+                return javax.ws.rs.Consumes.class;
+            }
+
+            @Override
+            public String[] value() {
+                return consumes;
+            }
+        };
+    }
+
+    javax.ws.rs.Produces synthesizeProduces(String[] produces) {
+        return new javax.ws.rs.Produces() {
+            @Override
+            public Class<? extends Annotation> annotationType() {
+                return javax.ws.rs.Produces.class;
+            }
+
+            @Override
+            public String[] value() {
+                return produces;
+            }
+        };
     }
 
 }
