@@ -46,6 +46,8 @@ import java.lang.reflect.Array;
 import java.lang.reflect.Type;
 import java.util.*;
 
+import static io.swagger.v3.jaxrs2.Reader.DEFAULT_DESCRIPTION;
+
 public class SwaggerOpenAPIVisitor implements TypeElementVisitor<Object, Object> {
 
     private OpenAPI openAPI;
@@ -282,7 +284,7 @@ public class SwaggerOpenAPIVisitor implements TypeElementVisitor<Object, Object>
                         if (operation.getResponses() == null) {
                             operation.responses(
                                     new io.swagger.v3.oas.models.responses.ApiResponses()._default(
-                                            new io.swagger.v3.oas.models.responses.ApiResponse().description(Reader.DEFAULT_DESCRIPTION)
+                                            new io.swagger.v3.oas.models.responses.ApiResponse().description(DEFAULT_DESCRIPTION)
                                                     .content(content)
                                     )
                             );
@@ -306,18 +308,133 @@ public class SwaggerOpenAPIVisitor implements TypeElementVisitor<Object, Object>
 
                     }
                 }
-                /*
+
 
                 if (operation.getResponses() == null || operation.getResponses().isEmpty()) {
                     Content content = new Content();
                     MediaType mediaType = new MediaType();
-                    AnnotationsUtils.applyTypes(classProduces == null ? new String[0] : classProduces.value(),
-                            methodProduces == null ? new String[0] : methodProduces.value(), content, mediaType);
+                    AnnotationsUtils.applyTypes(null, produces, content, mediaType);
 
-                    ApiResponse apiResponseObject = new ApiResponse().description(DEFAULT_DESCRIPTION).content(content);
-                    operation.setResponses(new ApiResponses()._default(apiResponseObject));
+                    io.swagger.v3.oas.models.responses.ApiResponse apiResponseObject = new io.swagger.v3.oas.models.responses.ApiResponse().description(DEFAULT_DESCRIPTION).content(content);
+                    operation.setResponses(new io.swagger.v3.oas.models.responses.ApiResponses()._default(apiResponseObject));
                 }
 
+                List<Parameter> operationParameters = new ArrayList<>();
+                List<Parameter> formParameters = new ArrayList<>();
+ /*               Annotation[][] paramAnnotations = element.getPara;
+                if (annotatedMethod == null) { // annotatedMethod not null only when method with 0-2 parameters
+                    Type[] genericParameterTypes = method.getGenericParameterTypes();
+                    for (int i = 0; i < genericParameterTypes.length; i++) {
+                        final Type type = TypeFactory.defaultInstance().constructType(genericParameterTypes[i], cls);
+                        io.swagger.v3.oas.annotations.Parameter paramAnnotation = AnnotationsUtils.getAnnotation(io.swagger.v3.oas.annotations.Parameter.class, paramAnnotations[i]);
+                        Type paramType = ParameterProcessor.getParameterType(paramAnnotation, true);
+                        if (paramType == null) {
+                            paramType = type;
+                        } else {
+                            if (!(paramType instanceof Class)) {
+                                paramType = type;
+                            }
+                        }
+                        ResolvedParameter resolvedParameter = getParameters(paramType, Arrays.asList(paramAnnotations[i]), operation, classConsumes, methodConsumes, jsonViewAnnotation);
+                        for (Parameter p : resolvedParameter.parameters) {
+                            operationParameters.add(p);
+                        }
+                        if (resolvedParameter.requestBody != null) {
+                            processRequestBody(
+                                    resolvedParameter.requestBody,
+                                    operation,
+                                    methodConsumes,
+                                    classConsumes,
+                                    operationParameters,
+                                    paramAnnotations[i],
+                                    type,
+                                    jsonViewAnnotation);
+                        } else if (resolvedParameter.formParameter != null) {
+                            // collect params to use together as request Body
+                            formParameters.add(resolvedParameter.formParameter);
+                        }
+                    }
+                } else {
+                    for (int i = 0; i < annotatedMethod.getParameterCount(); i++) {
+                        AnnotatedParameter param = annotatedMethod.getParameter(i);
+                        final Type type = TypeFactory.defaultInstance().constructType(param.getParameterType(), cls);
+                        io.swagger.v3.oas.annotations.Parameter paramAnnotation = AnnotationsUtils.getAnnotation(io.swagger.v3.oas.annotations.Parameter.class, paramAnnotations[i]);
+                        Type paramType = ParameterProcessor.getParameterType(paramAnnotation, true);
+                        if (paramType == null) {
+                            paramType = type;
+                        } else {
+                            if (!(paramType instanceof Class)) {
+                                paramType = type;
+                            }
+                        }
+                        ResolvedParameter resolvedParameter = getParameters(paramType, Arrays.asList(paramAnnotations[i]), operation, classConsumes, methodConsumes, jsonViewAnnotation);
+                        for (Parameter p : resolvedParameter.parameters) {
+                            operationParameters.add(p);
+                        }
+                        if (resolvedParameter.requestBody != null) {
+                            processRequestBody(
+                                    resolvedParameter.requestBody,
+                                    operation,
+                                    methodConsumes,
+                                    classConsumes,
+                                    operationParameters,
+                                    paramAnnotations[i],
+                                    type,
+                                    jsonViewAnnotation);
+                        } else if (resolvedParameter.formParameter != null) {
+                            // collect params to use together as request Body
+                            formParameters.add(resolvedParameter.formParameter);
+                        }
+                    }
+                }
+                // if we have form parameters, need to merge them into single schema and use as request body..
+                if (formParameters.size() > 0) {
+                    Schema mergedSchema = new ObjectSchema();
+                    for (Parameter formParam: formParameters) {
+                        mergedSchema.addProperties(formParam.getName(), formParam.getSchema());
+                    }
+                    Parameter merged = new Parameter().schema(mergedSchema);
+                    processRequestBody(
+                            merged,
+                            operation,
+                            methodConsumes,
+                            classConsumes,
+                            operationParameters,
+                            new Annotation[0],
+                            null,
+                            jsonViewAnnotation);
+
+                }
+                if (operationParameters.size() > 0) {
+                    for (Parameter operationParameter : operationParameters) {
+                        operation.addParametersItem(operationParameter);
+                    }
+                }
+
+                // if subresource, merge parent parameters
+                if (parentParameters != null) {
+                    for (Parameter parentParameter : parentParameters) {
+                        operation.addParametersItem(parentParameter);
+                    }
+                }
+
+                if (subResource != null && !scannedResources.contains(subResource)) {
+                    scannedResources.add(subResource);
+                    read(subResource, operationPath, httpMethod, true, operation.getRequestBody(), operation.getResponses(), classTags, operation.getParameters(), scannedResources);
+                    // remove the sub resource so that it can visit it later in another path
+                    // but we have a room for optimization in the future to reuse the scanned result
+                    // by caching the scanned resources in the reader instance to avoid actual scanning
+                    // the the resources again
+                    scannedResources.remove(subResource);
+                    // don't proceed with root resource operation, as it's handled by subresource
+                    continue;
+                }
+
+                final Iterator<OpenAPIExtension> chain = OpenAPIExtensions.chain();
+                if (chain.hasNext()) {
+                    final OpenAPIExtension extension = chain.next();
+                    extension.decorateOperation(operation, method, chain);
+                }
 */
                 PathItem pathItemObject;
                 if (openAPI.getPaths() != null && openAPI.getPaths().get(path) != null) {
@@ -325,7 +442,6 @@ public class SwaggerOpenAPIVisitor implements TypeElementVisitor<Object, Object>
                 } else {
                     pathItemObject = new PathItem();
                 }
-
 
                 setPathItemOperation(pathItemObject, httpMethod, operation);
 
