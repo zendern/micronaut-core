@@ -16,6 +16,7 @@
 
 package io.micronaut.ast.groovy.visitor;
 
+import io.micronaut.ast.groovy.utils.AstAnnotationUtils;
 import io.micronaut.ast.groovy.utils.AstClassUtils;
 import io.micronaut.core.annotation.AnnotationMetadata;
 import io.micronaut.inject.visitor.ClassElement;
@@ -41,6 +42,10 @@ public class GroovyClassElement extends AbstractGroovyElement implements ClassEl
     GroovyClassElement(ClassNode classNode, AnnotationMetadata annotationMetadata) {
         super(annotationMetadata);
         this.classNode = classNode;
+    }
+
+    public static GroovyClassElement of(ClassNode classNode) {
+        return new GroovyClassElement(classNode, AstAnnotationUtils.getAnnotationMetadata(classNode));
     }
 
     @Override

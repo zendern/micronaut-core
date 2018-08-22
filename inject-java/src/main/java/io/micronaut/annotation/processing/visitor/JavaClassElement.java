@@ -21,6 +21,8 @@ import io.micronaut.inject.visitor.ClassElement;
 
 import javax.lang.model.element.Element;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.type.DeclaredType;
+import javax.lang.model.type.NoType;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.Types;
 
@@ -44,6 +46,24 @@ public class JavaClassElement extends AbstractJavaElement implements ClassElemen
         super(classElement, annotationMetadata);
         this.classElement = classElement;
         this.visitorContext = visitorContext;
+    }
+
+    public static ClassElement of(TypeMirror typeMirror, JavaVisitorContext visitorContext) {
+        if (typeMirror instanceof NoType) {
+            return new JavaVoidElement();
+        }
+        else if (typeMirror instanceof DeclaredType) {
+            Element e = ((DeclaredType) typeMirror).asElement();
+            if (e instanceof TypeElement) {
+                TypeElement typeElement = (TypeElement) e;
+                return new JavaClassElement(
+                        typeElement,
+                        visitorContext.getAnnotationUtils().getAnnotationMetadata(typeElement),
+                        visitorContext
+                );
+            }
+        }
+        return null;
     }
 
     @Override

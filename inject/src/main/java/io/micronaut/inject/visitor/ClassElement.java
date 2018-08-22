@@ -22,7 +22,7 @@ package io.micronaut.inject.visitor;
  * @author James Kleeh
  * @since 1.0
  */
-public interface ClassElement extends Element {
+public interface ClassElement extends VisibileElement {
 
     /**
      * @return True if the class is an inner class

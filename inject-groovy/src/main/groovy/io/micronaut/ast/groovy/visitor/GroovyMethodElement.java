@@ -20,9 +20,14 @@ import io.micronaut.ast.groovy.utils.AstAnnotationUtils;
 import io.micronaut.core.annotation.AnnotationMetadata;
 import io.micronaut.inject.visitor.ClassElement;
 import io.micronaut.inject.visitor.MethodElement;
+import io.micronaut.inject.visitor.ParameterElement;
 import org.codehaus.groovy.ast.ConstructorNode;
 import org.codehaus.groovy.ast.ClassNode;
 import org.codehaus.groovy.ast.MethodNode;
+
+import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * A method element returning data from a {@link MethodNode}.
@@ -90,7 +95,15 @@ public class GroovyMethodElement extends AbstractGroovyElement implements Method
 
     @Override
     public ClassElement getReturnType() {
-        ClassNode returnType = methodNode.getReturnType();
-        return new GroovyClassElement(returnType, AstAnnotationUtils.getAnnotationMetadata(returnType));
+        return GroovyClassElement.of(methodNode.getReturnType());
     }
+
+    @Override
+    public List<ParameterElement> getParameters() {
+        return Arrays.stream(methodNode.getParameters()).map(parameter -> {
+            return new GroovyParameterElement(parameter, AstAnnotationUtils.getAnnotationMetadata(parameter));
+        }).collect(Collectors.toList());
+    }
+
+
 }

@@ -28,7 +28,7 @@ import javax.lang.model.element.Modifier;
  * @author James Kleeh
  * @since 1.0
  */
-public abstract class AbstractJavaElement implements io.micronaut.inject.visitor.Element, AnnotationMetadataDelegate {
+public abstract class AbstractJavaElement implements io.micronaut.inject.visitor.VisibileElement, AnnotationMetadataDelegate {
 
     private final Element element;
     private final AnnotationMetadata annotationMetadata;

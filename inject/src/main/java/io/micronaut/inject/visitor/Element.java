@@ -32,16 +32,6 @@ public interface Element extends AnnotationMetadata {
     String getName();
 
     /**
-     * @return True if the element is protected.
-     */
-    boolean isProtected();
-
-    /**
-     * @return True if the element is public.
-     */
-    boolean isPublic();
-
-    /**
      * Returns the native underlying type. This API is extended by all of the inject language implementations.
      * The object returned by this method will be the language native type the information is being retrieved from.
      *
@@ -49,31 +39,4 @@ public interface Element extends AnnotationMetadata {
      */
     Object getNativeType();
 
-    /**
-     * @return True if the element is abstract.
-     */
-    default boolean isAbstract() {
-        return false;
-    }
-
-    /**
-     * @return True if the element is static.
-     */
-    default boolean isStatic() {
-        return false;
-    }
-
-    /**
-     * @return True if the element is private.
-     */
-    default boolean isPrivate() {
-        return !isPublic();
-    }
-
-    /**
-     * @return True if the element is final.
-     */
-    default boolean isFinal() {
-        return false;
-    }
 }
