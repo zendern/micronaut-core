@@ -45,7 +45,7 @@ public class JavaVisitorContext implements VisitorContext {
     private final Types types;
 
     /**
-     * The default constructor
+     * The default constructor.
      *
      * @param processingEnvironment The processing environment
      * @param elements The elements
