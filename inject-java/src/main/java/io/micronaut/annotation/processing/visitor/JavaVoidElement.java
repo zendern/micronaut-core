@@ -19,6 +19,9 @@ package io.micronaut.annotation.processing.visitor;
 import io.micronaut.core.annotation.AnnotationMetadataDelegate;
 import io.micronaut.inject.visitor.ClassElement;
 
+import java.util.Collections;
+import java.util.List;
+
 /**
  * Represents the void type.
  *
@@ -40,6 +43,11 @@ final class JavaVoidElement implements ClassElement, AnnotationMetadataDelegate 
     @Override
     public boolean isAssignable(String type) {
         return "void".equals(type);
+    }
+
+    @Override
+    public List<ClassElement> getGenerics() {
+        return Collections.emptyList();
     }
 
     @Override

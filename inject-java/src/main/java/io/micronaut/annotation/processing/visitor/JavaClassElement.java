@@ -18,6 +18,7 @@ package io.micronaut.annotation.processing.visitor;
 
 import io.micronaut.core.annotation.AnnotationMetadata;
 import io.micronaut.inject.visitor.ClassElement;
+import org.codehaus.groovy.ast.GenericsType;
 
 import javax.lang.model.element.Element;
 import javax.lang.model.element.TypeElement;
@@ -25,6 +26,10 @@ import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.NoType;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.Types;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * A class element returning data from a {@link TypeElement}.
@@ -92,5 +97,10 @@ public class JavaClassElement extends AbstractJavaElement implements ClassElemen
             return types.isAssignable(thisType, thatType);
         }
         return false;
+    }
+
+    @Override
+    public List<ClassElement> getGenerics() {
+        return Collections.emptyList();
     }
 }

@@ -321,7 +321,7 @@ public class SwaggerOpenAPIVisitor implements TypeElementVisitor<Object, Object>
 
                 List<Parameter> operationParameters = new ArrayList<>();
                 List<Parameter> formParameters = new ArrayList<>();
- /*               Annotation[][] paramAnnotations = element.getPara;
+               Annotation[][] paramAnnotations = element.getParameters();
                 if (annotatedMethod == null) { // annotatedMethod not null only when method with 0-2 parameters
                     Type[] genericParameterTypes = method.getGenericParameterTypes();
                     for (int i = 0; i < genericParameterTypes.length; i++) {
@@ -387,6 +387,7 @@ public class SwaggerOpenAPIVisitor implements TypeElementVisitor<Object, Object>
                         }
                     }
                 }
+                /*
                 // if we have form parameters, need to merge them into single schema and use as request body..
                 if (formParameters.size() > 0) {
                     Schema mergedSchema = new ObjectSchema();

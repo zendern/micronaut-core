@@ -17,6 +17,7 @@
 package io.micronaut.annotation.processing.visitor;
 
 import io.micronaut.annotation.processing.AnnotationUtils;
+import io.micronaut.annotation.processing.GenericUtils;
 import io.micronaut.inject.visitor.VisitorContext;
 
 import javax.annotation.processing.Filer;
@@ -43,6 +44,7 @@ public class JavaVisitorContext implements VisitorContext {
     private final Elements elements;
     private final AnnotationUtils annotationUtils;
     private final Types types;
+    private final GenericUtils genericUtils;
 
     /**
      * The default constructor.
@@ -52,12 +54,17 @@ public class JavaVisitorContext implements VisitorContext {
      * @param annotationUtils The annotation utils
      * @param types Type types
      */
-    public JavaVisitorContext(ProcessingEnvironment processingEnvironment, Elements elements, AnnotationUtils annotationUtils, Types types) {
+    public JavaVisitorContext(ProcessingEnvironment processingEnvironment,
+                              Elements elements,
+                              AnnotationUtils annotationUtils,
+                              Types types,
+                              GenericUtils genericUtils) {
         this.messager = processingEnvironment.getMessager();
         this.filer = processingEnvironment.getFiler();
         this.elements = elements;
         this.annotationUtils = annotationUtils;
         this.types = types;
+        this.genericUtils = genericUtils;
     }
 
     @Override
@@ -122,4 +129,11 @@ public class JavaVisitorContext implements VisitorContext {
     public Types getTypes() {
         return types;
     }
+
+    /**
+     * The generic utils.
+     *
+     * @return The generic utils
+     */
+    public GenericUtils getGenericUtils() { return genericUtils; }
 }

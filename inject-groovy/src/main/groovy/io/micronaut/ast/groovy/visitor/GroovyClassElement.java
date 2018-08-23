@@ -21,9 +21,13 @@ import io.micronaut.ast.groovy.utils.AstClassUtils;
 import io.micronaut.core.annotation.AnnotationMetadata;
 import io.micronaut.inject.visitor.ClassElement;
 import org.codehaus.groovy.ast.ClassNode;
+import org.codehaus.groovy.ast.GenericsType;
 import org.codehaus.groovy.ast.InnerClassNode;
 
 import java.lang.reflect.Modifier;
+import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * A class element returning data from a {@link ClassNode}.
@@ -101,5 +105,13 @@ public class GroovyClassElement extends AbstractGroovyElement implements ClassEl
     @Override
     public boolean isAssignable(String type) {
         return AstClassUtils.isSubclassOf(classNode, type);
+    }
+
+    @Override
+    public List<ClassElement> getGenerics() {
+        return Arrays.stream(classNode.getGenericsTypes())
+                .map(GenericsType::getType)
+                .map(GroovyClassElement::of)
+                .collect(Collectors.toList());
     }
 }
