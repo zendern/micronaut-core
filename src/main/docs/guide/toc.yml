@@ -121,13 +121,13 @@ cloud:
     title: Cloud Configuration
     distributedConfiguration: Distributed Configuration
     distributedConfigurationConsul: Consul Support
-#    distributedConfigurationAwsParameterStore: AWS Parameter Store Support
+    distributedConfigurationAwsParameterStore: AWS Parameter Store Support
   serviceDiscovery:
     title: Service Discovery
     serviceDiscoveryConsul: Consul Support
     serviceDiscoveryEureka: Eureka Support
     serviceDiscoveryKubernetes: Kubernetes Support
-#    serviceDiscoveryRoute53: AWS Route 53 Support
+    serviceDiscoveryRoute53: AWS Route 53 Support
     serviceDiscoveryManual: Manual Service Discovery Configuration
   clientSideLoadBalancing:
     title: Client Side Load Balancing
@@ -206,6 +206,10 @@ languageSupport:
     kaptintellij: Kotlin, Kapt and IntelliJ
     openandaop: Kotlin and AOP Advice
     kotlinretainparamnames: Kotlin and Retaining Parameter Names
+  graal:
+    title: Micronaut for GraalVM
+    graalServices: Microservices as GraalVM native images
+    graalFAQ: GraalVM and Micronaut FAQ
 management:
   title: Management & Monitoring
   buildingEndpoints:

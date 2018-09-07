@@ -66,8 +66,7 @@ import java.util.stream.Stream;
  */
 public class DefaultEnvironment extends PropertySourcePropertyResolver implements Environment {
 
-    //private static final String EC2_LINUX_HYPERVISOR_FILE = "/sys/hypervisor/uuid";
-    private static final String EC2_LINUX_HYPERVISOR_FILE = "/tmp/uuid";
+    private static final String EC2_LINUX_HYPERVISOR_FILE = "/sys/hypervisor/uuid";
     private static final String EC2_WINDOWS_HYPERVISOR_CMD = "wmic path win32_computersystemproduct get uuid";
     private static final String PROPERTY_SOURCES_KEY = "micronaut.config.files";
     private static final String FILE_SEPARATOR = ",";
@@ -183,6 +182,7 @@ public class DefaultEnvironment extends PropertySourcePropertyResolver implement
     public DefaultEnvironment addPropertySource(PropertySource propertySource) {
         propertySources.put(propertySource.getName(), propertySource);
         if (isRunning() && !reading.get()) {
+            resetCaches();
             processPropertySource(propertySource, PropertySource.PropertyConvention.JAVA_PROPERTIES);
         }
         return this;
@@ -260,6 +260,7 @@ public class DefaultEnvironment extends PropertySourcePropertyResolver implement
             for (int i = 0; i < catalog.length; i++) {
                 catalog[i] = null;
             }
+            resetCaches();
         }
         return this;
     }

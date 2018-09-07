@@ -183,6 +183,8 @@ public class DefaultApplicationContext extends DefaultBeanContext implements App
             if (!rce.isRuntimeConfigured()) {
                 initializeTypeConverters(this);
             }
+        } else {
+            initializeTypeConverters(this);
         }
 
         super.initializeContext(contextScopeBeans, processedBeans);
@@ -221,6 +223,11 @@ public class DefaultApplicationContext extends DefaultBeanContext implements App
                     }
                 } else if (candidate.hasDeclaredStereotype(EachBean.class)) {
                     Class dependentType = candidate.getValue(EachBean.class, Class.class).orElse(null);
+                    if (dependentType == null) {
+                        transformedCandidates.add(candidate);
+                        continue;
+                    }
+
                     Collection<BeanDefinition> dependentCandidates = findBeanCandidates(dependentType, null);
                     if (!dependentCandidates.isEmpty()) {
                         for (BeanDefinition dependentCandidate : dependentCandidates) {
@@ -231,8 +238,8 @@ public class DefaultApplicationContext extends DefaultBeanContext implements App
                                 BeanDefinitionDelegate<?> parentDelegate = (BeanDefinitionDelegate) dependentCandidate;
                                 optional = parentDelegate.get(Named.class.getName(), String.class).map(Qualifiers::byName);
                             } else {
-                                Optional<String> qualiferName = dependentCandidate.getAnnotationNameByStereotype(javax.inject.Qualifier.class);
-                                optional = qualiferName.map(name -> Qualifiers.byAnnotation(dependentCandidate, name));
+                                Optional<String> qualifierName = dependentCandidate.getAnnotationNameByStereotype(javax.inject.Qualifier.class);
+                                optional = qualifierName.map(name -> Qualifiers.byAnnotation(dependentCandidate, name));
                             }
 
                             if (dependentCandidate.isPrimary()) {
@@ -445,6 +452,11 @@ public class DefaultApplicationContext extends DefaultBeanContext implements App
         @Override
         protected void startEnvironment() {
             registerSingleton(Environment.class, bootstrapEnvironment);
+        }
+
+        @Override
+        protected void initializeEventListeners() {
+            // no-op .. Bootstrap context disallows bean event listeners
         }
 
         @Override
