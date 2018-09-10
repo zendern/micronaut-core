@@ -58,4 +58,9 @@ public interface ClassElement extends VisibileElement {
      * @return The generic types associated with this type, empty if none.
      */
     List<ClassElement> getGenerics();
+
+    /**
+     * @return The elements contained in this class element
+     */
+    List<Element> getElements(VisitorContext visitorContext);
 }

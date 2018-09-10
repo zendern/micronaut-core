@@ -18,6 +18,7 @@ package io.micronaut.annotation.processing.visitor;
 
 import io.micronaut.annotation.processing.AnnotationUtils;
 import io.micronaut.annotation.processing.GenericUtils;
+import io.micronaut.annotation.processing.ModelUtils;
 import io.micronaut.inject.visitor.VisitorContext;
 
 import javax.annotation.processing.Filer;
@@ -27,7 +28,6 @@ import javax.lang.model.element.Element;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
 import javax.tools.Diagnostic;
-import javax.tools.JavaFileManager;
 import javax.tools.StandardLocation;
 import java.io.Writer;
 
@@ -45,6 +45,7 @@ public class JavaVisitorContext implements VisitorContext {
     private final AnnotationUtils annotationUtils;
     private final Types types;
     private final GenericUtils genericUtils;
+    private final ModelUtils modelUtils;
 
     /**
      * The default constructor.
@@ -58,13 +59,15 @@ public class JavaVisitorContext implements VisitorContext {
                               Elements elements,
                               AnnotationUtils annotationUtils,
                               Types types,
-                              GenericUtils genericUtils) {
+                              GenericUtils genericUtils,
+                              ModelUtils modelUtils) {
         this.messager = processingEnvironment.getMessager();
         this.filer = processingEnvironment.getFiler();
         this.elements = elements;
         this.annotationUtils = annotationUtils;
         this.types = types;
         this.genericUtils = genericUtils;
+        this.modelUtils = modelUtils;
     }
 
     @Override
@@ -101,6 +104,15 @@ public class JavaVisitorContext implements VisitorContext {
      */
     public Messager getMessager() {
         return messager;
+    }
+
+    /**
+     * The model utils.
+     *
+     * @return The model utils
+     */
+    public ModelUtils getModelUtils() {
+        return modelUtils;
     }
 
     /**

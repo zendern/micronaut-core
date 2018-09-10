@@ -88,4 +88,7 @@ public class GroovyVisitorContext implements VisitorContext {
         }
     }
 
+    SourceUnit getSourceUnit() {
+        return sourceUnit;
+    }
 }

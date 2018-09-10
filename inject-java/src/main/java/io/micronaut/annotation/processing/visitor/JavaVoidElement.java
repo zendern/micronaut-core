@@ -18,6 +18,11 @@ package io.micronaut.annotation.processing.visitor;
 
 import io.micronaut.core.annotation.AnnotationMetadataDelegate;
 import io.micronaut.inject.visitor.ClassElement;
+import io.micronaut.inject.visitor.Element;
+import io.micronaut.inject.visitor.VisitorContext;
+
+import java.util.Collections;
+import java.util.List;
 
 import java.util.Collections;
 import java.util.List;
@@ -68,5 +73,10 @@ final class JavaVoidElement implements ClassElement, AnnotationMetadataDelegate 
     @Override
     public Object getNativeType() {
         return void.class;
+    }
+
+    @Override
+    public List<Element> getElements(VisitorContext visitorContext) {
+        return Collections.emptyList();
     }
 }
