@@ -14,22 +14,22 @@
  * limitations under the License.
  */
 
-package io.micronaut.security.token.propagation;
+package io.micronaut.http.util;
 
-import io.micronaut.core.util.Toggleable;
-import io.micronaut.http.util.RequestProcessorMatcher;
+import io.micronaut.http.HttpRequest;
 
 /**
- * Token propagation Configuration.
  *
+ * Defines a utility class which evaluates if a {@link io.micronaut.http.HttpRequest} should be processed.
  * @author Sergio del Amo
  * @since 1.0
  */
-public interface TokenPropagationConfiguration extends Toggleable, RequestProcessorMatcher {
-
+public interface RequestProcessor {
     /**
      *
-     * @return Path to be matched by Token Propagation Filter.
+     * @param matcher Request Matcher
+     * @param request The request
+     * @return true if the request should be processed
      */
-    String getPath();
+    boolean shouldProcessRequest(RequestProcessorMatcher matcher, HttpRequest<?> request);
 }

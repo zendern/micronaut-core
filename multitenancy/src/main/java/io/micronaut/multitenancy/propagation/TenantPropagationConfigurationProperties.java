@@ -14,21 +14,21 @@
  * limitations under the License.
  */
 
-package io.micronaut.security.token.propagation;
+package io.micronaut.multitenancy.propagation;
 
 import io.micronaut.context.annotation.ConfigurationProperties;
-import io.micronaut.security.token.config.TokenConfigurationProperties;
+import io.micronaut.multitenancy.MultitenancyConfiguration;
 
 /**
- * Token Propagation Configuration Properties.
+ * Tenant propagation Configuration Properties.
  *
  * @author Sergio del Amo
  * @since 1.0
  */
-@ConfigurationProperties(TokenPropagationConfigurationProperties.PREFIX)
-public class TokenPropagationConfigurationProperties implements TokenPropagationConfiguration {
+@ConfigurationProperties(TenantPropagationConfigurationProperties.PREFIX)
+public class TenantPropagationConfigurationProperties implements TenantPropagationConfiguration {
 
-    public static final String PREFIX = TokenConfigurationProperties.PREFIX + ".propagation";
+    public static final String PREFIX = MultitenancyConfiguration.PREFIX + ".propagation";
 
     /**
      * The default enable value.
@@ -36,22 +36,14 @@ public class TokenPropagationConfigurationProperties implements TokenPropagation
     @SuppressWarnings("WeakerAccess")
     public static final boolean DEFAULT_ENABLED = false;
 
-    /**
-     * The default path.
-     */
-    @SuppressWarnings("WeakerAccess")
-    public static final String DEFAULT_PATH = "/**";
-
     private boolean enabled = DEFAULT_ENABLED;
 
     private String serviceIdRegex;
 
     private String uriRegex;
 
-    private String path = DEFAULT_PATH;
-
     /**
-     * @return a regular expression to match the service.
+     * @return a regular expresion to validate the service id against e.g. http://(guides|docs)\.micronaut\.io
      */
     @Override
     public String getServiceIdRegex() {
@@ -59,16 +51,17 @@ public class TokenPropagationConfigurationProperties implements TokenPropagation
     }
 
     /**
-     * a regular expression to match the service id.
+     * Regular expression to match service ID.
      * @param serviceIdRegex serviceId regular expression
      */
     public void setServiceIdRegex(String serviceIdRegex) {
         this.serviceIdRegex = serviceIdRegex;
     }
 
+
     /**
      *
-     * @return a regular expression to match the uri.
+     * @return a regular expression to validate the target request uri against.
      */
     @Override
     public String getUriRegex() {
@@ -76,7 +69,7 @@ public class TokenPropagationConfigurationProperties implements TokenPropagation
     }
 
     /**
-     * a regular expression to match the uri.
+     * Regular expression to match URI.
      * @param uriRegex uri regular expression
      */
     public void setUriRegex(String uriRegex) {
@@ -89,28 +82,10 @@ public class TokenPropagationConfigurationProperties implements TokenPropagation
     }
 
     /**
-     * Enables {@link io.micronaut.security.token.propagation.TokenPropagationHttpClientFilter}. Default value {@value #DEFAULT_ENABLED}
+     * Whether {@link io.micronaut.multitenancy.propagation.TenantPropagationHttpClientFilter} should be enabled. Default value ({@value #DEFAULT_ENABLED}).
      * @param enabled enabled flag
      */
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
-    }
-
-
-    /**
-     * Configures {@link io.micronaut.security.token.propagation.TokenPropagationHttpClientFilter} path. Default value {@value #DEFAULT_PATH}
-     * @param path Path to be matched by Token Propagation Filter.
-     */
-    public void setPath(String path) {
-        this.path = path;
-    }
-
-    /**
-     *
-     * @return Path to be matched by Token Propagation Filter.
-     */
-    @Override
-    public String getPath() {
-        return this.path;
     }
 }

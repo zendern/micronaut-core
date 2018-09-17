@@ -14,22 +14,15 @@
  * limitations under the License.
  */
 
-package io.micronaut.security.token.propagation;
+package io.micronaut.multitenancy.tenantresolver;
 
 import io.micronaut.core.util.Toggleable;
-import io.micronaut.http.util.RequestProcessorMatcher;
 
 /**
- * Token propagation Configuration.
+ * An interface defining {@link io.micronaut.multitenancy.tenantresolver.PrincipalTenantResolver} configuration.
  *
  * @author Sergio del Amo
- * @since 1.0
+ * @since 1.0.0
  */
-public interface TokenPropagationConfiguration extends Toggleable, RequestProcessorMatcher {
-
-    /**
-     *
-     * @return Path to be matched by Token Propagation Filter.
-     */
-    String getPath();
+public interface PrincipalTenantResolverConfiguration extends Toggleable {
 }

@@ -1,0 +1,9 @@
+dependencies {
+    compile project(":multitenancy")
+    compile project(":configurations:gorm-common")
+
+    testCompile project(":http-server-netty")
+    testCompile project(":http-client")
+    testCompile project(":security-jwt")
+    testCompile project(":inject-groovy")
+}

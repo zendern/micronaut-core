@@ -14,22 +14,15 @@
  * limitations under the License.
  */
 
-package io.micronaut.security.token.propagation;
-
-import io.micronaut.core.util.Toggleable;
-import io.micronaut.http.util.RequestProcessorMatcher;
+package io.micronaut.multitenancy;
 
 /**
- * Token propagation Configuration.
+ * Define constants used by Multitenancy.
  *
  * @author Sergio del Amo
  * @since 1.0
  */
-public interface TokenPropagationConfiguration extends Toggleable, RequestProcessorMatcher {
-
-    /**
-     *
-     * @return Path to be matched by Token Propagation Filter.
-     */
-    String getPath();
+public interface MultitenancyConfiguration {
+    String PREFIX = "micronaut.multitenancy";
 }
+

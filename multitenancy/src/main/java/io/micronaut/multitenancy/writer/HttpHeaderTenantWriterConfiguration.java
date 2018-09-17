@@ -14,22 +14,21 @@
  * limitations under the License.
  */
 
-package io.micronaut.security.token.propagation;
+package io.micronaut.multitenancy.writer;
 
 import io.micronaut.core.util.Toggleable;
-import io.micronaut.http.util.RequestProcessorMatcher;
 
 /**
- * Token propagation Configuration.
+ * {@link io.micronaut.multitenancy.writer.HttpHeaderTenantWriter} Configuration.
  *
  * @author Sergio del Amo
  * @since 1.0
  */
-public interface TokenPropagationConfiguration extends Toggleable, RequestProcessorMatcher {
+interface HttpHeaderTenantWriterConfiguration extends Toggleable {
 
     /**
      *
-     * @return Path to be matched by Token Propagation Filter.
+     * @return an HTTP Header name. e.g. Authorization
      */
-    String getPath();
+    String getHeaderName();
 }

@@ -14,22 +14,26 @@
  * limitations under the License.
  */
 
-package io.micronaut.security.token.propagation;
+package io.micronaut.multitenancy.writer;
 
-import io.micronaut.core.util.Toggleable;
-import io.micronaut.http.util.RequestProcessorMatcher;
+import io.micronaut.http.MutableHttpRequest;
+import io.micronaut.multitenancy.MultitenancyConfiguration;
+import java.io.Serializable;
 
 /**
- * Token propagation Configuration.
+ *  Responsible for writing the tenant in the request.
  *
  * @author Sergio del Amo
  * @since 1.0
  */
-public interface TokenPropagationConfiguration extends Toggleable, RequestProcessorMatcher {
+public interface TenantWriter {
+
+    String PREFIX = MultitenancyConfiguration.PREFIX + ".tenantwriter";
 
     /**
-     *
-     * @return Path to be matched by Token Propagation Filter.
+     * Writes the token to the request.
+     * @param request The {@link MutableHttpRequest} instance
+     * @param tenant tenant Id
      */
-    String getPath();
+    void writeTenant(MutableHttpRequest<?> request, Serializable tenant);
 }

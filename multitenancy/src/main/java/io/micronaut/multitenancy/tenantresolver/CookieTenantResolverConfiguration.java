@@ -14,22 +14,22 @@
  * limitations under the License.
  */
 
-package io.micronaut.security.token.propagation;
+package io.micronaut.multitenancy.tenantresolver;
 
 import io.micronaut.core.util.Toggleable;
-import io.micronaut.http.util.RequestProcessorMatcher;
 
 /**
- * Token propagation Configuration.
+ * {@link io.micronaut.multitenancy.tenantresolver.CookieTenantResolver} configuration.
  *
  * @author Sergio del Amo
- * @since 1.0
+ * @since 1.0.0
  */
-public interface TokenPropagationConfiguration extends Toggleable, RequestProcessorMatcher {
+public interface CookieTenantResolverConfiguration extends Toggleable {
+    String DEFAULT_COOKIENAME = "tenantId";
 
     /**
-     *
-     * @return Path to be matched by Token Propagation Filter.
+     * Cookie name which should be used to resolve the tenant id from.
+     * @return a String with the Cookie name.
      */
-    String getPath();
+    String getCookiename();
 }

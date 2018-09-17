@@ -14,22 +14,25 @@
  * limitations under the License.
  */
 
-package io.micronaut.security.token.propagation;
-
-import io.micronaut.core.util.Toggleable;
-import io.micronaut.http.util.RequestProcessorMatcher;
+package io.micronaut.http.util;
 
 /**
- * Token propagation Configuration.
+ * Defines regular expressions to match requests.
  *
  * @author Sergio del Amo
  * @since 1.0
  */
-public interface TokenPropagationConfiguration extends Toggleable, RequestProcessorMatcher {
+public interface RequestProcessorMatcher {
+
+    /**
+     * @return a regular expresion to validate the service id against.
+     */
+    String getServiceIdRegex();
 
     /**
      *
-     * @return Path to be matched by Token Propagation Filter.
+     * @return a regular expression to validate the target request uri against.
      */
-    String getPath();
+    String getUriRegex();
+
 }
