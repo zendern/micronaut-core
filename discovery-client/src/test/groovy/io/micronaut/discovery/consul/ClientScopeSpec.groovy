@@ -57,7 +57,7 @@ class ClientScopeSpec extends Specification implements MockConsulSpec  {
         consulServer?.stop()
     }
 
-    @IgnoreIf({ !System.getenv('CONSUL_PORT') })
+    @IgnoreIf({ !env['CONSUL_PORT'] })
     void "test that a client can be discovered using @Client scope with Consul "() {
         given:
         def consulServer = [
@@ -97,7 +97,7 @@ class ClientScopeSpec extends Specification implements MockConsulSpec  {
         }
     }
 
-    @Controller
+    @Controller("/message")
     static class MessageController {
         @Inject EmbeddedServer embeddedServer
 

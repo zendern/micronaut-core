@@ -16,7 +16,9 @@
 package io.micronaut.ast.groovy.annotation
 
 import groovy.transform.CompileStatic
+import io.micronaut.ast.groovy.utils.ExtendedParameter
 import io.micronaut.core.convert.ConversionService
+import io.micronaut.core.reflect.ClassUtils
 import io.micronaut.core.util.StringUtils
 import io.micronaut.core.value.OptionalValues
 import io.micronaut.inject.annotation.AbstractAnnotationMetadataBuilder
@@ -67,6 +69,12 @@ class GroovyAnnotationMetadataBuilder extends AbstractAnnotationMetadataBuilder<
     }
 
     @Override
+    protected Optional<AnnotatedNode> getAnnotationMirror(String annotationName) {
+        ClassNode cn = ClassUtils.forName(annotationName, GroovyAnnotationMetadataBuilder.classLoader).map({ Class cls -> ClassHelper.make(cls)}).orElseGet({->ClassHelper.make(annotationName)})
+        return Optional.of((AnnotatedNode)cn)
+    }
+
+    @Override
     protected String getAnnotationTypeName(AnnotationNode annotationMirror) {
         return annotationMirror.classNode.name
     }
@@ -97,7 +105,18 @@ class GroovyAnnotationMetadataBuilder extends AbstractAnnotationMetadataBuilder<
             }
             hierarchy.add(mn)
             return hierarchy
-
+        } else if (element instanceof ExtendedParameter) {
+            ExtendedParameter p = (ExtendedParameter) element
+            List<AnnotatedNode> hierarchy = []
+            MethodNode methodNode = p.methodNode
+            if (!methodNode.getAnnotations(ANN_OVERRIDE).isEmpty()) {
+                int variableIdx = Arrays.asList(methodNode.parameters).indexOf(p.parameter)
+                for (MethodNode overridden : findOverriddenMethods(methodNode)) {
+                    hierarchy.add(new ExtendedParameter(overridden, overridden.parameters[variableIdx]))
+                }
+            }
+            hierarchy.add(p)
+            return hierarchy
         } else {
             return Collections.singletonList(element)
         }
@@ -124,6 +143,8 @@ class GroovyAnnotationMetadataBuilder extends AbstractAnnotationMetadataBuilder<
             List<MethodNode> methods = new ArrayList<>(classNode.getMethods())
             Map<? extends AnnotatedNode, Expression> defaultValues = new HashMap<>()
 
+            // TODO: Remove this branch of the code after upgrading to Groovy 3.0
+            // https://issues.apache.org/jira/browse/GROOVY-8696
             if (classNode.isResolved()) {
                 Class resolved = classNode.getTypeClass()
                 for (MethodNode method: methods) {

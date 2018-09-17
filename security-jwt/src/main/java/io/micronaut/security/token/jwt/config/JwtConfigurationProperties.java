@@ -32,10 +32,24 @@ public class JwtConfigurationProperties implements JwtConfiguration {
 
     public static final String PREFIX = TokenConfigurationProperties.PREFIX + ".jwt";
 
-    protected boolean enabled = false;
+    /**
+     * The default enable value.
+     */
+    @SuppressWarnings("WeakerAccess")
+    public static final boolean DEFAULT_ENABLED = false;
+
+    private boolean enabled = DEFAULT_ENABLED;
 
     @Override
     public boolean isEnabled() {
         return enabled;
+    }
+
+    /**
+     * Sets whether JWT security is enabled. Default value ({@value #DEFAULT_ENABLED}).
+     * @param enabled True if it is
+     */
+    public void setEnabled(boolean enabled) {
+        this.enabled = enabled;
     }
 }

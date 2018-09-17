@@ -52,12 +52,11 @@ class MaxHeaderSizeSpec extends Specification {
         cleanup:
         embeddedServer.stop()
         client.stop()
-
     }
 
     @Controller('/max-header')
     static class TestController {
-        @Get('/')
+        @Get
         HttpStatus index() {
             HttpStatus.OK
         }

@@ -10,6 +10,8 @@ buildscript {
         classpath 'io.github.groovylang.groovydoc:groovydoc-gradle-plugin:1.0.1'
         classpath 'com.github.jengelman.gradle.plugins:shadow:2.0.2'
         classpath "gradle.plugin.io.sdkman:gradle-sdkvendor-plugin:1.0.0"
+        classpath "gradle.plugin.org.aim42:htmlSanityCheck:$htmlSanityCheckVersion"
+        classpath "org.codehaus.groovy.modules.http-builder:http-builder:0.7.1"
     }
 }
 
@@ -18,6 +20,7 @@ plugins {
 }
 
 apply plugin: "io.sdkman.vendors"
+apply plugin: 'org.aim42.htmlSanityCheck'
 
 repositories {
     maven { url "https://repo.grails.org/grails/core" }
@@ -64,35 +67,27 @@ ext {
                     name:'jackson-datatype-jdk8',
                     modules:['jackson-datatype-jsr310']
             ],
+            jaeger: [
+                    version: jaegerVersion,
+                    group:'io.jaegertracing',
+                    name:'jaeger-core'
+            ],
             jsr305:[
                     version:jsr305Version,
                     group:'com.google.code.findbugs',
                     name:'jsr305'
             ],
-            'micrometer.core'    : [
-                    version: micrometerVersion,
-                    group  : 'io.micrometer',
-                    name   : 'micrometer-core'
+            kafka: [
+                    version:kafkaVersion,
+                    group:'org.apache.kafka',
+                    name:'kafka-clients',
+                    modules: ['kafka_2.12', 'kafka-streams']
             ],
-            'micrometer.atlas'   : [
+            'micrometer'    : [
                     version: micrometerVersion,
                     group  : 'io.micrometer',
-                    name   : 'micrometer-registry-atlas'
-            ],
-            'micrometer.graphite': [
-                    version: micrometerVersion,
-                    group  : 'io.micrometer',
-                    name   : 'micrometer-registry-graphite'
-            ],
-            'micrometer.prometheus'   : [
-                    version: micrometerVersion,
-                    group  : 'io.micrometer',
-                    name   : 'micrometer-registry-prometheus'
-            ],
-            'micrometer.statsd'  : [
-                    version: micrometerVersion,
-                    group  : 'io.micrometer',
-                    name   : 'micrometer-registry-statsd'
+                    name   : 'micrometer-core',
+                    modules :['micrometer-registry-atlas', 'micrometer-registry-graphite', 'micrometer-registry-prometheus', 'micrometer-registry-statsd']
             ],
             'mongo' : [
                     version: mongoVersion,
@@ -110,7 +105,7 @@ ext {
                 name:'neo4j-harness'
             ],
             'neo4j.bolt': [
-                version: '1.5.1',
+                version: '1.6.2',
                 group:'org.neo4j.driver',
                 name:'neo4j-java-driver'
             ],
@@ -119,6 +114,12 @@ ext {
                 group:'io.netty',
                 name:'netty-codec-http',
                 modules:['netty-handler','netty-handler-proxy']
+            ],
+            opentracing: [
+                version: '0.31.0',
+                group: 'io.opentracing',
+                name: 'opentracing-api',
+                modules:['opentracing-util']
             ],
             picocli: [
                     version: picocliVersion,
@@ -214,7 +215,57 @@ ext {
 
 }
 
-subprojects { subproject ->
+task testReportsAggregate {
+    group 'verification'
+    doLast() {
+        int totalFailures = 0
+        int totalErrors = 0
+        int totalSkipped = 0
+        int totalTests = 0
+        int itemPad = 13
+        int titlePad = 35
+        String separator = " | "
+        subprojects.each { subproject ->
+            if ( subproject.tasks.find { Task task -> task.name == 'test' } ) {
+                if (new File("${subproject.buildDir}/test-results/test").exists()) {
+                    int failures = 0
+                    int errors = 0
+                    int skipped = 0
+                    int tests = 0
+                    new File("${subproject.buildDir}/test-results/test").eachFile() { file ->
+                        if ( file.name.endsWith('.xml') ) {
+                            def testsuite = new XmlSlurper().parseText(file.text)
+                            failures += "${testsuite['@failures']}" as int
+                            errors += "${testsuite['@errors']}" as int
+                            skipped += "${testsuite['@skipped']}" as int
+                            tests += "${testsuite['@tests']}" as int
+                        }
+                    }
+                    totalFailures += failures
+                    totalErrors += errors
+                    totalSkipped += skipped
+                    totalTests += tests
+                    String subprojectStr = "${subproject.name}".padRight(titlePad)
+                    String testStr = "tests: $tests".padRight(itemPad)
+                    String skippedStr = "skipped: $skipped".padRight(itemPad)
+                    String errorsStr = "errors: $errors".padRight(itemPad)
+                    String failuresStr = "failures: $failures".padRight(itemPad)
+                    logger.quiet("${subprojectStr}${separator}${testStr}${separator}${skippedStr}${separator}${errorsStr}${separator}${failuresStr}")
+                }
+            }
+        }
+        String title  = "All Tests".padRight(titlePad)
+        String testStr = "tests: $totalTests".padRight(itemPad)
+        String skippedStr = "skipped: $totalSkipped".padRight(itemPad)
+        String errorsStr = "errors: $totalErrors".padRight(itemPad)
+        String failuresStr = "failures: $totalFailures".padRight(itemPad)
+        int itemsSize = [totalTests, totalSkipped, totalErrors, totalFailures].size()
+        logger.quiet("="* ((itemPad * itemsSize) + titlePad + (separator.length() * itemsSize)))
+        logger.quiet("${title}${separator}${testStr}${separator}${skippedStr}${separator}${errorsStr}${separator}${failuresStr}")
+    }
+}
+
+subprojects { Project subproject ->
 
     version project.projectVersion
 
@@ -248,11 +299,14 @@ subprojects { subproject ->
     else {
         apply plugin:"groovy"
         apply plugin:"java"
+
+
+
         sourceCompatibility = '1.8'
         targetCompatibility = '1.8'
 //        compileJava.options.compilerArgs.add '-parameters'
 //        compileTestJava.options.compilerArgs.add '-parameters'
-        if(!subproject.name.contains('test-suite')) {
+        if(!subproject.name.contains('test-suite') && !subproject.toString().contains('build-projects')) {
             apply from:"${rootProject.rootDir}/gradle/publishing.gradle"
             apply plugin: 'checkstyle'
             
@@ -273,7 +327,7 @@ subprojects { subproject ->
 
     jar {
         manifest {
-            attributes('Automatic-Module-Name': "${subproject.group}.${subproject.name}")
+            attributes('Automatic-Module-Name': "${subproject.group}.${subproject.name}".replaceAll('[^\\w\\.\\$_]', "_"))
         }
     }
 
@@ -290,6 +344,7 @@ subprojects { subproject ->
 
         reports.html.enabled = !System.getenv("TRAVIS")
         reports.junitXml.enabled = !System.getenv("TRAVIS")
+
     }
 
     tasks.withType(Checkstyle) {
@@ -316,11 +371,19 @@ subprojects { subproject ->
         }
     }
 
+    def isDocumented = subproject.name != 'inject' && subproject.name != 'core' && subproject.name != 'aop' && !subproject.name.contains('asciidoc-config-props')
+
     dependencies {
+        documentation "org.codehaus.groovy:groovy-templates:$groovyVersion"
+        documentation "org.codehaus.groovy:groovy-dateutil:$groovyVersion"
         if (subproject.name != "bom") {
             compile dependencyVersion("slf4j")
         }
 
+
+        if (isDocumented) {
+            compileOnly project(":build-projects:asciidoc-config-props")
+        }
         compileOnly "com.github.ben-manes.caffeine:caffeine:$caffeineVersion"
         testCompile "com.github.ben-manes.caffeine:caffeine:$caffeineVersion"
         testCompile dependencyVersion("groovy")
@@ -337,6 +400,92 @@ subprojects { subproject ->
 
         testCompile "org.ow2.asm:asm:$asmVersion"
         testCompile "org.ow2.asm:asm-commons:$asmVersion"
+    }
+
+    task moveConfigProps() {
+        group 'documentation'
+        doLast {
+            ant.mkdir(dir:"${rootProject.buildDir}/config-props")
+            ant.move(file: "${subproject.buildDir}/classes/java/main/META-INF/config-properties.adoc", tofile:"${rootProject.buildDir}/config-props/${subproject.name}-config-properties.adoc", failonerror:false, quiet:true)
+        }
+    }
+
+    task javaDocAtReplacement(type: io.micronaut.docs.JavaDocAtValueReplacementTask, dependsOn: moveConfigProps) {
+        adocFile = new File("${rootProject.buildDir}/config-props/${subproject.name}-config-properties.adoc")
+        rootProjectDir = rootProject.projectDir
+    }
+
+    task replaceAtLink(dependsOn: moveConfigProps) {
+        group 'documentation'
+
+        doLast {
+            File file = new File("${rootProject.buildDir}/config-props/${subproject.name}-config-properties.adoc")
+            if ( file.exists()) {
+                def atLinkReplacer = { String str ->
+                    String newLine = str.substring(0, str.indexOf('{@link io.micronaut.'))
+                    String sub = "api:"+str.substring(str.indexOf('{@link io.micronaut.') + '{@link io.micronaut.'.length())
+                    newLine += sub.substring(0, sub.indexOf('}')) + '[]'
+                    newLine += sub.substring(sub.indexOf('}') + '}'.length())
+                    newLine
+                }
+
+                List<String> lines = file.readLines()
+                List<String> outputLines = []
+                for (String line : lines) {
+                    String proccessedLine = line
+                    while (proccessedLine.contains('{@link io.micronaut.')) {
+                        proccessedLine = atLinkReplacer(proccessedLine)
+                    }
+                    outputLines << proccessedLine
+                }
+                file.text = outputLines.join('\n')
+            }
+        }
+    }
+    task processConfigProps(dependsOn: [replaceAtLink, javaDocAtReplacement]) {
+        group 'documentation'
+        ext {
+            individualConfigPropsFolder = "${rootProject.buildDir}/generated/configurationProperties"
+        }
+        doFirst {
+            if(!new File("${rootProject.buildDir}/generated").exists()) {
+                new File("${rootProject.buildDir}/generated").mkdir()
+            }
+            if(!new File("${rootProject.buildDir}/generated/configurationProperties").exists()) {
+                new File("${rootProject.buildDir}/generated/configurationProperties").mkdir()
+            }
+        }
+        doLast {
+
+            def f = new File("${rootProject.buildDir}/config-props/${subproject.name}-config-properties.adoc")
+            if (f.exists()) {
+                def lines = f.readLines()
+                def separator = "<<<"
+                List<String> accumulator = []
+                String configurationPropertyName = ''
+                for (String line : lines) {
+
+                    if (line.startsWith('<a id="')) {
+                        String sub = line.substring(line.indexOf('id="') + 'id="'.length())
+                        sub = sub.substring(0, sub.indexOf('"'))
+                        configurationPropertyName = sub
+                    }
+                    if (line == separator) {
+                        File outputfile = new File("${individualConfigPropsFolder}/${configurationPropertyName}.adoc")
+                        outputfile.createNewFile()
+                        outputfile.text = accumulator.join('\n')
+                        accumulator = []
+                        configurationPropertyName = null
+                    } else {
+                        accumulator << line
+                    }
+                }
+            }
+        }
+    }
+
+    groovydoc {
+        classpath += project.configurations.documentation
     }
 
     task allDeps(type: DependencyReportTask) {}
@@ -362,59 +511,6 @@ allprojects {
     apply from: rootProject.file('gradle/license.gradle')
 }
 
-task aggregateReports {
-    group 'verification'
-    doLast() {
-        def html = "<!DOCTYPE html><html><head><meta charset='UTF-8'><title>Micronaut reports</title></head><body><img src='http://micronaut.io/images/micronautlogo.svg' alt='Micronaut'/><ul>"
-        subprojects.each { subproject ->
-            if ( subproject.tasks.find { Task task -> task.name == 'test' } ) {
-              def link = ''
-                if (new File("${subproject.buildDir}/reports/checkstyle").exists()) {
-                    mkdir("${rootProject.buildDir}/reports/${subproject.name}/checkstyle")
-                    copy {
-                        from "${subproject.buildDir}/reports/checkstyle"
-                        into "${rootProject.buildDir}/reports/${subproject.name}/checkstyle"
-                    }
-                    link += " <a href='${subproject.name}/checkstyle/index.html'>checkstyle</a>"
-                }
-              if (new File("${subproject.buildDir}/test-results/test").exists()) {
-                  int failures = 0
-                  int errors = 0
-                  int skipped = 0
-                  int tests = 0
-                  new File("${subproject.buildDir}/test-results/test").eachFile() { file ->
-                      if ( file.name.endsWith('.xml') ) {
-                          def testsuite = new XmlSlurper().parseText(file.text)
-                          failures += "${testsuite['@failures']}" as int
-                          errors += "${testsuite['@errors']}" as int
-                          skipped += "${testsuite['@skipped']}" as int
-                          tests += "${testsuite['@tests']}" as int
-                      }
-                  }
-                  link += " tests: ${tests} skipped: ${skipped} <span style='${errors ? 'color: red;' : ''}'>errors: ${errors}</span> <span style='${failures ? 'color: red;' : ''}'>failures: ${failures}</span>"
-              }
-              if (new File("${subproject.buildDir}/reports/tests/test").exists()) {
-                  mkdir("${rootProject.buildDir}/reports/${subproject.name}/test")
-                  copy {
-                      from "${subproject.buildDir}/reports/tests/test"
-                      into "${rootProject.buildDir}/reports/${subproject.name}/test"
-                  }
-                  link += " <a href='${subproject.name}/test/index.html'>test</a>"
-              }
-
-
-              if (link) {
-                  html += "<li><b>${subproject.name}</b> $link</li>"
-              }
-            }
-        }
-        html += "</ul></body></html>"
-        File f = new File("${rootProject.buildDir}/reports/index.html")
-        f.text = html
-    }
-}
-
-
 sdkman {
     api = "https://vendors.sdkman.io"
     consumerKey = System.getenv("GVM_SDKVENDOR_KEY") ?: project.hasProperty("gvmSdkvendorKey") ? project.gvmSdkvendorKey : ''
@@ -424,3 +520,10 @@ sdkman {
     url = "https://github.com/micronaut-projects/micronaut-core/releases/download/v${project.version}/micronaut-${project.version}.zip"
     hashtag = "#micronautfw"
 }
+
+htmlSanityCheck {
+    sourceDir = new File("${rootProject.buildDir}/docs/")
+    sourceDocuments = [ "index.html"]
+
+}
+docs.finalizedBy(htmlSanityCheck)

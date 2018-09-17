@@ -17,12 +17,9 @@
 package io.micronaut.http;
 
 import io.micronaut.http.cookie.Cookies;
-import io.micronaut.http.util.HttpUtil;
 
 import java.net.InetSocketAddress;
 import java.net.URI;
-import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
@@ -119,12 +116,6 @@ public interface HttpRequest<B> extends HttpMessage<B> {
             .map(Locale::forLanguageTag);
     }
 
-    /**
-     * @return The request character encoding. Defaults to {@link StandardCharsets#UTF_8}
-     */
-    default Charset getCharacterEncoding() {
-        return HttpUtil.resolveCharset(this).orElse(StandardCharsets.UTF_8);
-    }
 
     /**
      * Return a {@link MutableHttpRequest} for a {@link HttpMethod#GET} request for the given URI.

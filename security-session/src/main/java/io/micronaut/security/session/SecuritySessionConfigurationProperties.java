@@ -17,6 +17,7 @@
 package io.micronaut.security.session;
 
 import io.micronaut.context.annotation.ConfigurationProperties;
+import io.micronaut.core.util.StringUtils;
 import io.micronaut.security.config.SecurityConfigurationProperties;
 
 /**
@@ -28,12 +29,36 @@ import io.micronaut.security.config.SecurityConfigurationProperties;
 public class SecuritySessionConfigurationProperties implements SecuritySessionConfiguration {
     public static final String PREFIX = SecurityConfigurationProperties.PREFIX + ".session";
 
-    protected String loginSuccessTargetUrl = "/";
-    protected String loginFailureTargetUrl = "/";
-    protected String logoutTargetUrl = "/";
-    protected String unauthorizedTargetUrl;
-    protected String forbiddenTargetUrl;
-    protected boolean enabled = false;
+    /**
+     * The default enable value.
+     */
+    @SuppressWarnings("WeakerAccess")
+    public static final boolean DEFAULT_ENABLED = false;
+
+    /**
+     * The default login success target URL.
+     */
+    @SuppressWarnings("WeakerAccess")
+    public static final String DEFAULT_LOGINSUCCESSTARGETURL = "/";
+
+    /**
+     * The default login failure target URL.
+     */
+    @SuppressWarnings("WeakerAccess")
+    public static final String DEFAULT_LOGINFAILURETARGETURL = "/";
+
+    /**
+     * The default login target URL.
+     */
+    @SuppressWarnings("WeakerAccess")
+    public static final String DEFAULT_LOGOUTTARGETURL = "/";
+
+    private String loginSuccessTargetUrl = DEFAULT_LOGINSUCCESSTARGETURL;
+    private String loginFailureTargetUrl = DEFAULT_LOGINFAILURETARGETURL;
+    private String logoutTargetUrl = DEFAULT_LOGOUTTARGETURL;
+    private String unauthorizedTargetUrl;
+    private String forbiddenTargetUrl;
+    private boolean enabled = DEFAULT_ENABLED;
 
     @Override
     public boolean isEnabled() {
@@ -63,5 +88,69 @@ public class SecuritySessionConfigurationProperties implements SecuritySessionCo
     @Override
     public String getForbiddenTargetUrl()  {
         return forbiddenTargetUrl;
+    }
+
+    /**
+     * Sets the login success target URL. Default value ({@value #DEFAULT_LOGINSUCCESSTARGETURL}).
+     *
+     * @param loginSuccessTargetUrl The URL
+     */
+    public void setLoginSuccessTargetUrl(String loginSuccessTargetUrl) {
+        if (StringUtils.isNotEmpty(loginSuccessTargetUrl)) {
+            this.loginSuccessTargetUrl = loginSuccessTargetUrl;
+        }
+    }
+
+    /**
+     * Sets the login failure target URL. Default value ({@value #DEFAULT_LOGINFAILURETARGETURL}).
+     *
+     * @param loginFailureTargetUrl The URL
+     */
+    public void setLoginFailureTargetUrl(String loginFailureTargetUrl) {
+        if (StringUtils.isNotEmpty(loginFailureTargetUrl)) {
+            this.loginFailureTargetUrl = loginFailureTargetUrl;
+        }
+    }
+
+    /**
+     * Sets the logout target URL. Default value ({@value #DEFAULT_LOGOUTTARGETURL}).
+     *
+     * @param logoutTargetUrl The URL
+     */
+    public void setLogoutTargetUrl(String logoutTargetUrl) {
+        if (StringUtils.isNotEmpty(logoutTargetUrl)) {
+            this.logoutTargetUrl = logoutTargetUrl;
+        }
+    }
+
+    /**
+     * Sets the unauthorized target URL.
+     *
+     * @param unauthorizedTargetUrl The URL
+     */
+    public void setUnauthorizedTargetUrl(String unauthorizedTargetUrl) {
+        if (StringUtils.isNotEmpty(unauthorizedTargetUrl)) {
+            this.unauthorizedTargetUrl = unauthorizedTargetUrl;
+        }
+    }
+
+    /**
+     * Sets the forbidden target URL.
+     *
+      * @param forbiddenTargetUrl The URL
+     */
+    public void setForbiddenTargetUrl(String forbiddenTargetUrl) {
+        if (StringUtils.isNotEmpty(forbiddenTargetUrl)) {
+            this.forbiddenTargetUrl = forbiddenTargetUrl;
+        }
+    }
+
+    /**
+     * Sets whether the session config is enabled. Default value ({@value #DEFAULT_ENABLED}).
+     *
+     * @param enabled True if it is enabled
+     */
+    public void setEnabled(boolean enabled) {
+        this.enabled = enabled;
     }
 }

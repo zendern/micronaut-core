@@ -42,21 +42,25 @@ public class Authenticator {
     protected final Collection<AuthenticationProvider> authenticationProviders;
 
     /**
-     * @param authenticationProviders a List of availabble authentication providers
+     * @param authenticationProviders a List of available authentication providers
      */
     public Authenticator(Collection<AuthenticationProvider> authenticationProviders) {
         this.authenticationProviders = authenticationProviders;
     }
 
     /**
-     * @param credentials instance of {@link UsernamePasswordCredentials}
-     * @return Empty optional if authentication failed. If any {@link AuthenticationProvider} authenticates, that {@link AuthenticationResponse} is sent.
+     * Authenticates the user with the provided credentials.
+     *
+     * @param credentials The credentials to authenticate with
+     * @return A publisher that emits {@link AuthenticationResponse} objects
      */
     public Publisher<AuthenticationResponse> authenticate(UsernamePasswordCredentials credentials) {
         if (this.authenticationProviders == null) {
             return Flowable.empty();
         }
-        System.out.println(authenticationProviders.stream().map(AuthenticationProvider::getClass).map(Class::getName).collect(Collectors.joining()));
+        if (LOG.isDebugEnabled()) {
+            LOG.debug(authenticationProviders.stream().map(AuthenticationProvider::getClass).map(Class::getName).collect(Collectors.joining()));
+        }
         Iterator<AuthenticationProvider> providerIterator = authenticationProviders.iterator();
         if (providerIterator.hasNext()) {
             Flowable<AuthenticationProvider> providerFlowable = Flowable.just(providerIterator.next());

@@ -81,6 +81,69 @@ task javadoc(type: Javadoc, description: 'Generate javadocs from all child proje
     }
 }
 
+task cleanupPropertyReference {
+    group = DOCUMENTATION_GROUP
+    doLast {
+        File f = new File( "${rootProject.buildDir}/docs/guide/configurationreference.html" )
+        if(f.exists()) {
+            f.delete()
+        }
+    }
+}
+
+task mergeConfigurationReference() {
+    ext {        
+        inputFileName = "${rootProject.buildDir}/generated/propertyReference.adoc"
+    }
+    group = DOCUMENTATION_GROUP
+    inputs.files( fileTree( "$project.buildDir/config-props" ) ).skipWhenEmpty()
+    doLast {
+        File outputFile = new File(inputFileName)
+        outputFile.createNewFile()
+        outputFile.withOutputStream { out ->
+            List<File> files = new ArrayList<>(inputs.files.files).sort { File f -> f.name }
+            for ( file in files ) {
+                String header = "=== " + file.name.replace('.adoc', '').split('-').collect { token ->
+                    "${token.charAt(0).toString().toUpperCase()}${token.substring(1)}"
+                }.join(' ')
+                file.withInputStream {
+                    out << header << '\n' << it << '\n'
+                }
+            }
+        }                
+    }
+}
+task publishConfigurationReference(dependsOn: mergeConfigurationReference) {
+    ext {
+        destinationFileName = "${rootProject.buildDir}/docs/guide/configurationreference.html"
+    }
+    doLast {
+        String textPage = new File("${rootProject.projectDir}/src/main/docs/resources/style/page.html").text    
+        textPage = textPage.replace("@projectVersion@", projectVersion)
+        textPage = textPage.replace("@pagetitle@", 'Configuration Reference | Micronaut')
+        if (new File(mergeConfigurationReference.inputFileName).exists()) {
+            String html = org.asciidoctor.Asciidoctor.Factory.create().render(new File(mergeConfigurationReference.inputFileName).text, [:])
+            textPage = textPage.replace("@docscontent@", html)
+            File configurationreference = new File(destinationFileName)
+            configurationreference.createNewFile()                    
+            configurationreference.text = textPage
+        } else {
+            logger.quiet "${mergeConfigurationReference.inputFileName} does not exist."
+        }    
+    }
+}
+
+task cleanupGuideFiles(type: Delete) {
+    group = DOCUMENTATION_GROUP
+    delete fileTree("${rootProject.buildDir}/docs/guide") {
+        include '*.html'
+        exclude 'index.html'
+        exclude publishConfigurationReference.destinationFileName
+    }
+    delete fileTree("${rootProject.buildDir}/docs/guide/pages") {
+        include '*.html'
+    }
+}
 
 task publishGuide(type: grails.doc.gradle.PublishGuide) {
     group = DOCUMENTATION_GROUP
@@ -95,17 +158,20 @@ task publishGuide(type: grails.doc.gradle.PublishGuide) {
     resourcesDir = project.file(docResourcesDir)
     properties = [
             'safe':'UNSAFE',
+            'source-highlighter':'highlightjs',
             'version': project.version,
             'subtitle': project.projectDesc,
             'api': '../api',
             'sourceDir':rootProject.projectDir.absolutePath,
             'sourcedir':rootProject.projectDir.absolutePath,
+            'includedir': "${rootProject.buildDir.absolutePath}/generated/",
             'javaee': 'https://docs.oracle.com/javaee/8/api/',
             'javase': 'https://docs.oracle.com/javase/8/docs/api/',
             'groovyapi': 'http://docs.groovy-lang.org/latest/html/gapi/',
             'grailsapi': 'http://docs.grails.org/latest/api/',
             'gormapi': 'http://gorm.grails.org/latest/api/',
-            'springapi': 'https://docs.spring.io/spring/docs/current/javadoc-api/'
+            'springapi': 'https://docs.spring.io/spring/docs/current/javadoc-api/',
+            'kafka-version': rootProject.properties['kafkaVersion']
     ]
     doLast {
         ant.move(file:"${project.buildDir}/docs/guide/single.html",
@@ -122,18 +188,31 @@ task publishGuide(type: grails.doc.gradle.PublishGuide) {
 '''
     }
 }
-
-task docs(dependsOn:[javadoc, publishGuide]) {
+task zipDocs(type:Zip) {
     group = DOCUMENTATION_GROUP
+    baseName = "${project.name}-${project.version}"
+    destinationDir = new File(project.buildDir, "distributions")
+    from project.files("${buildDir}/docs")
 }
-
-def assembleTask = project.tasks.findByName("assemble")
-if(assembleTask == null) {
-    task assemble(dependsOn: docs, type:Zip) {
-        baseName = "${project.name}-${project.version}"
-        destinationDir = new File(project.buildDir, "distributions")
-        from project.files("${buildDir}/docs")
+task assemble() {
+    subprojects.each { subproject ->
+        if (subproject.tasks.findByName("assemble") != null) {
+            dependsOn subproject.tasks.findByName("assemble")
+        }
     }
 }
-
+task processConfigProps() {
+    subprojects.each { subproject ->
+        if (subproject.tasks.findByName("processConfigProps") != null) {
+            dependsOn subproject.tasks.findByName("processConfigProps")
+        }
+    }
+}
+task docs(dependsOn: [assemble, publishGuide, processConfigProps, publishConfigurationReference]) {
+    group = DOCUMENTATION_GROUP
+}
+processConfigProps.mustRunAfter assemble
+publishGuide.mustRunAfter processConfigProps
+publishConfigurationReference.mustRunAfter publishGuide
+docs.finalizedBy zipDocs
 

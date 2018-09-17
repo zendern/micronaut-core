@@ -38,20 +38,53 @@ import java.util.OptionalInt;
 @ConfigurationProperties("netty")
 public class NettyHttpServerConfiguration extends HttpServerConfiguration {
 
-    protected Map<ChannelOption, Object> childOptions = Collections.emptyMap();
-    protected Map<ChannelOption, Object> options = Collections.emptyMap();
-    protected Worker worker;
-    protected Parent parent;
-    @ReadableBytes
-    protected int maxInitialLineLength = 4096;
-    @ReadableBytes
-    protected int maxHeaderSize = 8192;
-    @ReadableBytes
-    protected int maxChunkSize = 8192;
-    protected boolean chunkedSupported = true;
-    protected boolean validateHeaders = true;
-    protected int initialBufferSize = 128;
-    protected LogLevel logLevel;
+    /**
+     * The default max initial line length.
+     */
+    @SuppressWarnings("WeakerAccess")
+    public static final int DEFAULT_MAXINITIALLINELENGTH = 4096;
+
+    /**
+     * The default max header size.
+     */
+    @SuppressWarnings("WeakerAccess")
+    public static final int DEFAULT_MAXHEADERSIZE = 8192;
+
+    /**
+     * The default max chunk size.
+     */
+    @SuppressWarnings("WeakerAccess")
+    public static final int DEFAULT_MAXCHUNKSIZE = 8192;
+
+    /**
+     * The default chunk supported value.
+     */
+    @SuppressWarnings("WeakerAccess")
+    public static final boolean DEFAULT_CHUNKSUPPORTED = true;
+
+    /**
+     * The default validate headers value.
+     */
+    @SuppressWarnings("WeakerAccess")
+    public static final boolean DEFAULT_VALIDATEHEADERS = true;
+
+    /**
+     * The default initial buffer size value.
+     */
+    @SuppressWarnings("WeakerAccess")
+    public static final int DEFAULT_INITIALBUFFERSIZE = 128;
+
+    private Map<ChannelOption, Object> childOptions = Collections.emptyMap();
+    private Map<ChannelOption, Object> options = Collections.emptyMap();
+    private Worker worker;
+    private Parent parent;
+    private int maxInitialLineLength = DEFAULT_MAXINITIALLINELENGTH;
+    private int maxHeaderSize = DEFAULT_MAXHEADERSIZE;
+    private int maxChunkSize = DEFAULT_MAXCHUNKSIZE;
+    private boolean chunkedSupported = DEFAULT_CHUNKSUPPORTED;
+    private boolean validateHeaders = DEFAULT_VALIDATEHEADERS;
+    private int initialBufferSize = DEFAULT_INITIALBUFFERSIZE;
+    private LogLevel logLevel;
 
     /**
      * Default empty constructor.
@@ -161,6 +194,95 @@ public class NettyHttpServerConfiguration extends HttpServerConfiguration {
     }
 
     /**
+     * Sets the Netty child worker options.
+     *
+     * @param childOptions The options
+     */
+    public void setChildOptions(Map<ChannelOption, Object> childOptions) {
+        this.childOptions = childOptions;
+    }
+
+    /**
+     * Sets the channel options.
+     * @param options The channel options
+     */
+    public void setOptions(Map<ChannelOption, Object> options) {
+        this.options = options;
+    }
+
+    /**
+     * Sets the worker event loop configuration.
+     * @param worker The worker config
+     */
+    public void setWorker(Worker worker) {
+        this.worker = worker;
+    }
+
+    /**
+     * Sets the parent event loop configuration.
+     * @param parent The parent config
+     */
+    public void setParent(Parent parent) {
+        this.parent = parent;
+    }
+
+    /**
+     * Sets the maximum initial line length for the HTTP request. Default value ({@value #DEFAULT_MAXINITIALLINELENGTH}).
+     * @param maxInitialLineLength The max length
+     */
+    public void setMaxInitialLineLength(@ReadableBytes int maxInitialLineLength) {
+        this.maxInitialLineLength = maxInitialLineLength;
+    }
+
+    /**
+     * Sets the maximum size of any one header. Default value ({@value #DEFAULT_MAXHEADERSIZE}).
+     * @param maxHeaderSize The max header size
+     */
+    public void setMaxHeaderSize(@ReadableBytes int maxHeaderSize) {
+        this.maxHeaderSize = maxHeaderSize;
+    }
+
+    /**
+     * Sets the maximum size of any single request chunk. Default value ({@value #DEFAULT_MAXCHUNKSIZE}).
+     * @param maxChunkSize The max chunk size
+     */
+    public void setMaxChunkSize(@ReadableBytes int maxChunkSize) {
+        this.maxChunkSize = maxChunkSize;
+    }
+
+    /**
+     * Sets whether chunked transfer encoding is supported. Default value ({@value #DEFAULT_CHUNKSUPPORTED}).
+     * @param chunkedSupported True if it is supported
+     */
+    public void setChunkedSupported(boolean chunkedSupported) {
+        this.chunkedSupported = chunkedSupported;
+    }
+
+    /**
+     * Sets whether to validate incoming headers. Default value ({@value #DEFAULT_VALIDATEHEADERS}).
+     * @param validateHeaders True if headers should be validated.
+     */
+    public void setValidateHeaders(boolean validateHeaders) {
+        this.validateHeaders = validateHeaders;
+    }
+
+    /**
+     * Sets the initial buffer size. Default value ({@value #DEFAULT_INITIALBUFFERSIZE}).
+     * @param initialBufferSize The initial buffer size
+     */
+    public void setInitialBufferSize(int initialBufferSize) {
+        this.initialBufferSize = initialBufferSize;
+    }
+
+    /**
+     * Sets the Netty log level.
+     * @param logLevel The log level
+     */
+    public void setLogLevel(LogLevel logLevel) {
+        this.logLevel = logLevel;
+    }
+
+    /**
      * Configuration for Netty worker.
      */
     @ConfigurationProperties("worker")
@@ -178,9 +300,33 @@ public class NettyHttpServerConfiguration extends HttpServerConfiguration {
      * Abstract class for configuring the Netty event loop.
      */
     public abstract static class EventLoopConfig {
-        protected int threads;
-        protected Integer ioRatio;
-        protected String executor;
+        private int threads;
+        private Integer ioRatio;
+        private String executor;
+
+        /**
+         * Sets the number of threads for the event loop group.
+         * @param threads The number of threads
+         */
+        public void setThreads(int threads) {
+            this.threads = threads;
+        }
+
+        /**
+         * Sets the I/O ratio.
+         * @param ioRatio The I/O ratio
+         */
+        public void setIoRatio(Integer ioRatio) {
+            this.ioRatio = ioRatio;
+        }
+
+        /**
+         * Sets the name of the executor.
+         * @param executor The executor
+         */
+        public void setExecutor(String executor) {
+            this.executor = executor;
+        }
 
         /**
          * @return The number of threads to use

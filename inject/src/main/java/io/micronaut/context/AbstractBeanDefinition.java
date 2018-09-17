@@ -57,6 +57,7 @@ import io.micronaut.inject.qualifiers.Qualifiers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.inject.Inject;
 import javax.inject.Provider;
@@ -200,6 +201,20 @@ public class AbstractBeanDefinition<T> extends AbstractBeanContextConditional im
     }
 
     @Override
+    public @Nonnull List<Argument<?>> getTypeArguments(String type) {
+        if (type == null) {
+            return Collections.emptyList();
+        }
+
+        Map<String, Argument<?>[]> typeArguments = getTypeArgumentsMap();
+        Argument<?>[] arguments = typeArguments.get(type);
+        if (arguments != null) {
+            return Arrays.asList(arguments);
+        }
+        return Collections.emptyList();
+    }
+
+    @Override
     public AnnotationMetadata getAnnotationMetadata() {
         if (this.beanAnnotationMetadata == null) {
             this.beanAnnotationMetadata = initializeAnnotationMetadata();
@@ -290,6 +305,11 @@ public class AbstractBeanDefinition<T> extends AbstractBeanContextConditional im
     @Override
     public Class<T> getBeanType() {
         return type;
+    }
+
+    @Override
+    public Optional<Class<?>> getDeclaringType() {
+        return Optional.ofNullable(declaringType);
     }
 
     @Override
@@ -590,13 +610,21 @@ public class AbstractBeanDefinition<T> extends AbstractBeanContextConditional im
     @Internal
     protected Object postConstruct(BeanResolutionContext resolutionContext, BeanContext context, Object bean) {
         DefaultBeanContext defaultContext = (DefaultBeanContext) context;
-        Collection<BeanInitializedEventListener> initializedEventListeners = defaultContext.getBeansOfType(resolutionContext, BeanInitializedEventListener.class, Qualifiers.byTypeArguments(getBeanType()));
-        for (BeanInitializedEventListener listener : initializedEventListeners) {
-            bean = listener.onInitialized(new BeanInitializingEvent(context, this, bean));
-            if (bean == null) {
-                throw new BeanInstantiationException(resolutionContext, "Listener [" + listener + "] returned null from onCreated event");
+        Collection<BeanRegistration<BeanInitializedEventListener>> beanInitializedEventListeners = ((DefaultBeanContext) context).beanInitializedEventListeners;
+        if (CollectionUtils.isNotEmpty(beanInitializedEventListeners)) {
+            for (BeanRegistration<BeanInitializedEventListener> registration : beanInitializedEventListeners) {
+                BeanDefinition<BeanInitializedEventListener> definition = registration.getBeanDefinition();
+                List<Argument<?>> typeArguments = definition.getTypeArguments(BeanInitializedEventListener.class);
+                if (CollectionUtils.isEmpty(typeArguments) || typeArguments.get(0).getType().isAssignableFrom(getBeanType())) {
+                    BeanInitializedEventListener listener = registration.getBean();
+                    bean = listener.onInitialized(new BeanInitializingEvent(context, this, bean));
+                    if (bean == null) {
+                        throw new BeanInstantiationException(resolutionContext, "Listener [" + listener + "] returned null from onCreated event");
+                    }
+                }
             }
         }
+
         for (int i = 0; i < methodInjectionPoints.size(); i++) {
             MethodInjectionPoint methodInjectionPoint = methodInjectionPoints.get(i);
             if (methodInjectionPoint.isPostConstructMethod() && methodInjectionPoint.requiresReflection()) {
@@ -899,7 +927,9 @@ public class AbstractBeanDefinition<T> extends AbstractBeanContextConditional im
         ConstructorInjectionPoint<T> constructorInjectionPoint = getConstructor();
         Argument<?> argument = constructorInjectionPoint.getArguments()[argIndex];
         Class argumentType = argument.getType();
-        if (argumentType.isArray()) {
+        if (argumentType == BeanResolutionContext.class) {
+            return resolutionContext;
+        } else if (argumentType.isArray()) {
             Collection beansOfType = getBeansOfTypeForConstructorArgument(resolutionContext, context, constructorInjectionPoint, argument);
             return beansOfType.toArray((Object[]) Array.newInstance(argumentType.getComponentType(), beansOfType.size()));
         } else if (Collection.class.isAssignableFrom(argumentType)) {
@@ -958,10 +988,14 @@ public class AbstractBeanDefinition<T> extends AbstractBeanContextConditional im
             Object result;
             if (context instanceof ApplicationContext) {
                 ApplicationContext propertyResolver = (ApplicationContext) context;
-                String prop = argument.getAnnotationMetadata().getValue(Value.class, String.class)
-                        .orElseThrow(() -> new IllegalStateException("Compiled getValueForMethodArgument(..) call present but @Value annotation missing."));
+                AnnotationMetadata argMetadata = argument.getAnnotationMetadata();
+                Optional<String> valAnn = argMetadata.getValue(Value.class, String.class);
+                String prop = valAnn.orElseGet(() ->
+                        argMetadata.getValue(Property.class, "name", String.class)
+                                   .orElseThrow(() -> new IllegalStateException("Compiled getValueForMethodArgument(..) call present but @Value annotation missing."))
+                );
                 ArgumentConversionContext<?> conversionContext = ConversionContext.of(argument);
-                Optional<?> value = resolveValue(propertyResolver, conversionContext, true, prop);
+                Optional<?> value = resolveValue(propertyResolver, conversionContext, valAnn.isPresent(), prop);
                 if (argument.getType() == Optional.class) {
                     return resolveOptionalObject(value);
                 } else {
@@ -969,7 +1003,7 @@ public class AbstractBeanDefinition<T> extends AbstractBeanContextConditional im
                     if (value.isPresent()) {
                         result = value.get();
                     } else {
-                        if (argument.getAnnotationMetadata().hasDeclaredAnnotation(Nullable.class)) {
+                        if (argMetadata.hasDeclaredAnnotation(Nullable.class)) {
                             result = null;
                         } else {
                             throw new DependencyInjectionException(resolutionContext, conversionContext, prop);
@@ -1349,6 +1383,16 @@ public class AbstractBeanDefinition<T> extends AbstractBeanContextConditional im
         return resolveBeanWithGenericsForField(resolutionContext, injectionPoint, (beanType, qualifier) ->
             ((DefaultBeanContext) context).streamOfType(resolutionContext, beanType, qualifier)
         );
+    }
+
+    /**
+     * A method that subclasses can override to provide information on type arguments.
+     *
+     * @return The type arguments
+     */
+    @Internal
+    protected Map<String, Argument<?>[]> getTypeArgumentsMap() {
+        return Collections.emptyMap();
     }
 
     /**

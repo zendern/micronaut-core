@@ -37,6 +37,7 @@ import java.util.Optional;
  */
 public abstract class AbstractAnnotatedArgumentBinder<A extends Annotation, T, S> implements AnnotatedArgumentBinder<A, T, S> {
 
+    private static final String DEFAULT_VALUE_MEMBER = "defaultValue";
     private final ConversionService<?> conversionService;
 
     /**
@@ -90,10 +91,19 @@ public abstract class AbstractAnnotatedArgumentBinder<A extends Annotation, T, S
         if (StringUtils.isEmpty(annotationValue)) {
             annotationValue = argument.getName();
         }
-        return values.get(annotationValue, context).orElse(null);
+        return values.get(annotationValue, context).orElseGet(() ->
+                conversionService.convert(argument.getAnnotationMetadata().getValue(Bindable.class, DEFAULT_VALUE_MEMBER, String.class).orElse(null), context).orElse(null)
+        );
     }
 
-    private BindingResult<T> doConvert(Object value, ArgumentConversionContext<T> context) {
+    /**
+     * Convert the value and return a binding result.
+     *
+     * @param value The value to convert
+     * @param context The conversion context
+     * @return The binding result
+     */
+    protected BindingResult<T> doConvert(Object value, ArgumentConversionContext<T> context) {
         Optional<T> result = conversionService.convert(value, context);
         if (result.isPresent() && context.getArgument().getType() == Optional.class) {
             return () -> (Optional<T>) result.get();

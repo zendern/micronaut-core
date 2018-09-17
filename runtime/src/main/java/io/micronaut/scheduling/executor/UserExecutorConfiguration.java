@@ -22,7 +22,6 @@ import io.micronaut.core.util.ArgumentUtils;
 import javax.annotation.Nullable;
 import javax.validation.constraints.Min;
 import java.util.Optional;
-import java.util.OptionalInt;
 import java.util.concurrent.ThreadFactory;
 
 /**
@@ -39,11 +38,14 @@ public class UserExecutorConfiguration implements ExecutorConfiguration {
      */
     public static final int AVAILABLE_PROCESSORS = Runtime.getRuntime().availableProcessors();
 
-    protected Optional<ExecutorType> type = Optional.of(ExecutorType.SCHEDULED);
-    protected OptionalInt parallelism = OptionalInt.of(AVAILABLE_PROCESSORS);
-    protected OptionalInt nThreads = OptionalInt.of(AVAILABLE_PROCESSORS * 2);
-    protected OptionalInt corePoolSize = OptionalInt.of(AVAILABLE_PROCESSORS * 2);
-    protected Optional<Class<? extends ThreadFactory>> threadFactoryClass = Optional.empty();
+    // needs to be protected to allow for nThreads to be set in config
+    @SuppressWarnings("WeakerAccess")
+    protected Integer nThreads = AVAILABLE_PROCESSORS * 2;
+    private ExecutorType type = ExecutorType.SCHEDULED;
+    private Integer parallelism = AVAILABLE_PROCESSORS;
+    private Integer corePoolSize = AVAILABLE_PROCESSORS * 2;
+    private Class<? extends ThreadFactory> threadFactoryClass;
+
 
     /**
      * Default Constructor.
@@ -53,34 +55,88 @@ public class UserExecutorConfiguration implements ExecutorConfiguration {
 
     @Override
     public ExecutorType getType() {
-        return type.orElse(ExecutorType.SCHEDULED);
+        return type;
     }
 
     @Override
     @Min(1L)
     public Integer getParallelism() {
-        return parallelism.orElse(AVAILABLE_PROCESSORS);
+        return parallelism;
     }
 
     @Override
     @Min(1L)
     public Integer getNumberOfThreads() {
-        return nThreads.orElse(AVAILABLE_PROCESSORS);
+        return nThreads;
     }
 
     @Override
     @Min(1L)
     public Integer getCorePoolSize() {
-        return corePoolSize.orElse(AVAILABLE_PROCESSORS);
+        return corePoolSize;
     }
 
     @Override
     public Optional<Class<? extends ThreadFactory>> getThreadFactoryClass() {
-        return threadFactoryClass;
+        return Optional.ofNullable(threadFactoryClass);
     }
 
     /**
-     * Construct a {@link UserExecutorConfiguration} for the given {@link ExecutorType}.
+     * Sets the executor type. Default value ({@link io.micronaut.scheduling.executor.ExecutorType#SCHEDULED}).
+     *
+     * @param type The type
+     */
+    public void setType(ExecutorType type) {
+        if (type != null) {
+            this.type = type;
+        }
+    }
+
+    /**
+     * Sets the parallelism for {@link io.micronaut.scheduling.executor.ExecutorType#WORK_STEALING}. Default value (Number of processors available to the Java virtual machine).
+     *
+     * @param parallelism The parallelism
+     */
+    public void setParallelism(Integer parallelism) {
+        if (parallelism != null) {
+            this.parallelism = parallelism;
+        }
+    }
+
+    /**
+     * Sets the number of threads for {@link io.micronaut.scheduling.executor.ExecutorType#FIXED}. Default value (2 * Number of processors available to the Java virtual machine).
+     *
+     * @param nThreads The number of threads
+     */
+
+    public void setNumberOfThreads(Integer nThreads) {
+        if (nThreads != null) {
+            this.nThreads = nThreads;
+        }
+    }
+
+    /**
+     * Sets the core pool size for {@link io.micronaut.scheduling.executor.ExecutorType#SCHEDULED}. Default value (2 * Number of processors available to the Java virtual machine).
+     *
+     * @param corePoolSize The core pool size
+     */
+    public void setCorePoolSize(Integer corePoolSize) {
+        if (corePoolSize != null) {
+            this.corePoolSize = corePoolSize;
+        }
+    }
+
+    /**
+     * Sets the thread factory class.
+     *
+     * @param threadFactoryClass The thread factory class.
+     */
+    public void setThreadFactoryClass(Class<? extends ThreadFactory> threadFactoryClass) {
+        this.threadFactoryClass = threadFactoryClass;
+    }
+
+    /**
+     * Construct a {@link UserExecutorConfiguration} for the given {@link io.micronaut.scheduling.executor.ExecutorType}.
      *
      * @param type The type
      * @return The configuration
@@ -88,30 +144,31 @@ public class UserExecutorConfiguration implements ExecutorConfiguration {
     public static UserExecutorConfiguration of(ExecutorType type) {
         ArgumentUtils.check("type", type).notNull();
         UserExecutorConfiguration configuration = new UserExecutorConfiguration();
-        configuration.type = Optional.of(type);
+        configuration.type = type;
         return configuration;
     }
 
     /**
-     * Construct a {@link UserExecutorConfiguration} for the given {@link ExecutorType}.
+     * Construct a {@link UserExecutorConfiguration} for the given {@link io.micronaut.scheduling.executor.ExecutorType}.
      *
      * @param type The type
-     * @param num  The number of threads for {@link ExecutorType#FIXED} or the parallelism for
-     *             {@link ExecutorType#WORK_STEALING} or the core pool size for {@link ExecutorType#SCHEDULED}
+     * @param num  The number of threads for {@link io.micronaut.scheduling.executor.ExecutorType#FIXED} or the parallelism for
+     *             {@link io.micronaut.scheduling.executor.ExecutorType#WORK_STEALING} or the core pool size for {@link io.micronaut.scheduling.executor.ExecutorType#SCHEDULED}
      * @return The configuration
      */
     public static UserExecutorConfiguration of(ExecutorType type, int num) {
+        ArgumentUtils.check("type", type).notNull();
         UserExecutorConfiguration configuration = of(type);
-        configuration.type = Optional.of(type);
+        configuration.type = type;
         switch (type) {
             case FIXED:
-                configuration.nThreads = OptionalInt.of(num);
+                configuration.nThreads = num;
                 break;
             case SCHEDULED:
-                configuration.corePoolSize = OptionalInt.of(num);
+                configuration.corePoolSize = num;
                 break;
             case WORK_STEALING:
-                configuration.parallelism = OptionalInt.of(num);
+                configuration.parallelism = num;
                 break;
             default:
         }
@@ -119,18 +176,18 @@ public class UserExecutorConfiguration implements ExecutorConfiguration {
     }
 
     /**
-     * Construct a {@link UserExecutorConfiguration} for the given {@link ExecutorType}.
+     * Construct a {@link UserExecutorConfiguration} for the given {@link io.micronaut.scheduling.executor.ExecutorType}.
      *
      * @param type               The type
-     * @param num                The number of threads for {@link ExecutorType#FIXED} or the parallelism for
-     *                           {@link ExecutorType#WORK_STEALING} or the core pool size for {@link ExecutorType#SCHEDULED}
+     * @param num                The number of threads for {@link io.micronaut.scheduling.executor.ExecutorType#FIXED} or the parallelism for
+     *                           {@link io.micronaut.scheduling.executor.ExecutorType#WORK_STEALING} or the core pool size for {@link io.micronaut.scheduling.executor.ExecutorType#SCHEDULED}
      * @param threadFactoryClass The thread factory class
      * @return The configuration
      */
     public static UserExecutorConfiguration of(ExecutorType type, int num, @Nullable Class<? extends ThreadFactory> threadFactoryClass) {
         UserExecutorConfiguration configuration = of(type, num);
         if (threadFactoryClass != null) {
-            configuration.threadFactoryClass = Optional.of(threadFactoryClass);
+            configuration.threadFactoryClass = threadFactoryClass;
         }
         return configuration;
     }

@@ -52,8 +52,8 @@ class NettyHttpServerConfigurationSpec extends Specification {
         config.childOptions.size() == 1
         config.childOptions.keySet().first() instanceof ChannelOption
         !config.host.isPresent()
-        config.parent.threads == 8
-        config.worker.threads == 8
+        config.parent.numOfThreads == 8
+        config.worker.numOfThreads == 8
 
         then:
         NettyHttpServer server = beanContext.getBean(NettyHttpServer)
@@ -61,7 +61,6 @@ class NettyHttpServerConfigurationSpec extends Specification {
 
         then:
         server != null
-
 
         cleanup:
         beanContext.close()

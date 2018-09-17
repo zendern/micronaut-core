@@ -29,7 +29,12 @@ import java.lang.annotation.Annotation;
 import java.util.*;
 
 /**
- * A type for representation annotation values in order to support {@link java.lang.annotation.Repeatable} annotations.
+ * A runtime representation of the an annotation and its values.
+ *
+ * <p>This class implements the {@link ValueResolver} interface and methods such as {@link ValueResolver#get(CharSequence, Class)} can be used to retrieve the values of annotation members.</p>
+ *
+ * <p>If a member is not present then the methods of the class will attempt to resolve the default value for a given annotation member. In this sense the behaviour of this class is similar to how
+ * a implementation of {@link Annotation} behaves.</p>
  *
  * @author Graeme Rocher
  * @since 1.0
@@ -106,6 +111,8 @@ public class AnnotationValue<A extends Annotation> implements ValueResolver<Char
     }
 
     /**
+     * The annotation name.
+     *
      * @return The annotation name
      */
     public @Nonnull final String getAnnotationName() {
@@ -122,6 +129,8 @@ public class AnnotationValue<A extends Annotation> implements ValueResolver<Char
     }
 
     /**
+     * Resolves the names of all the present annotation members.
+     *
      * @return The names of the members
      */
     public @Nonnull final Set<CharSequence> getMemberNames() {
@@ -274,6 +283,27 @@ public class AnnotationValue<A extends Annotation> implements ValueResolver<Char
         }
 
         return true;
+    }
+
+    /**
+     * Start building a new annotation for the given name.
+     *
+     * @param annotationName The annotation name
+     * @return The builder
+     */
+    public static AnnotationValueBuilder<?> builder(String annotationName) {
+        return new AnnotationValueBuilder<>(annotationName);
+    }
+
+    /**
+     * Start building a new annotation for the given name.
+     *
+     * @param annotation The annotation name
+     * @param <T> The annotation type
+     * @return The builder
+     */
+    public static <T extends Annotation> AnnotationValueBuilder<T> builder(Class<T> annotation) {
+        return new AnnotationValueBuilder<>(annotation);
     }
 
     /**

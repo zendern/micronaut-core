@@ -17,6 +17,7 @@
 package io.micronaut.security.token.jwt.cookie;
 
 import io.micronaut.context.annotation.ConfigurationProperties;
+import io.micronaut.core.util.StringUtils;
 import io.micronaut.security.token.jwt.config.JwtConfigurationProperties;
 
 /**
@@ -28,11 +29,40 @@ import io.micronaut.security.token.jwt.config.JwtConfigurationProperties;
 public class JwtCookieConfigurationProperties implements JwtCookieConfiguration {
     public static final String PREFIX = JwtConfigurationProperties.PREFIX + ".cookie";
 
-    protected boolean enabled = false;
-    protected String logoutTargetUrl = "/";
-    protected String cookieName = "JWT";
-    protected String loginSuccessTargetUrl = "/";
-    protected String loginFailureTargetUrl = "/";
+    /**
+     * The default enable value.
+     */
+    @SuppressWarnings("WeakerAccess")
+    public static final boolean DEFAULT_ENABLED = false;
+
+    /**
+     * The default cookie name.
+     */
+    @SuppressWarnings("WeakerAccess")
+    public static final String DEFAULT_COOKIENAME = "JWT";
+
+    /**
+     * The default logout target URL.
+     */
+    @SuppressWarnings("WeakerAccess")
+    public static final String DEFAULT_LOGOUTTARGETURL = "/";
+
+    /**
+     * The default login success target URL.
+     */
+    @SuppressWarnings("WeakerAccess")
+    public static final String DEFAULT_LOGINSUCCESSTARGETURL = "/";
+    /**
+     * The default login failure target URL.
+     */
+    @SuppressWarnings("WeakerAccess")
+    public static final String DEFAULT_LOGINFAILURETARGETURL = "/";
+
+    private boolean enabled = DEFAULT_ENABLED;
+    private String logoutTargetUrl = DEFAULT_LOGOUTTARGETURL;
+    private String cookieName = DEFAULT_COOKIENAME;
+    private String loginSuccessTargetUrl = DEFAULT_LOGINSUCCESSTARGETURL;
+    private String loginFailureTargetUrl = DEFAULT_LOGINFAILURETARGETURL;
 
     /**
      *
@@ -65,5 +95,54 @@ public class JwtCookieConfigurationProperties implements JwtCookieConfiguration 
     @Override
     public String getCookieName() {
         return cookieName;
+    }
+
+    /**
+     * Sets whether JWT cookie based security is enabled. Default value ({@value #DEFAULT_ENABLED}).
+     *
+     * @param enabled True if it is enabled
+     */
+    public void setEnabled(boolean enabled) {
+        this.enabled = enabled;
+    }
+
+    /**
+     * Sets the logout target URL. Default value ({@value #DEFAULT_LOGOUTTARGETURL}).
+     * @param logoutTargetUrl The URL
+     */
+    public void setLogoutTargetUrl(String logoutTargetUrl) {
+        if (StringUtils.isNotEmpty(logoutTargetUrl)) {
+            this.logoutTargetUrl = logoutTargetUrl;
+        }
+    }
+
+    /**
+     * Sets the cookie name to use. Default value ({@value #DEFAULT_COOKIENAME}).
+     * @param cookieName The cookie name
+     */
+    public void setCookieName(String cookieName) {
+        if (StringUtils.isNotEmpty(cookieName)) {
+            this.cookieName = cookieName;
+        }
+    }
+
+    /**
+     * Sets the login success target URL. Default value ({@value #DEFAULT_LOGINSUCCESSTARGETURL}).
+     * @param loginSuccessTargetUrl The URL
+     */
+    public void setLoginSuccessTargetUrl(String loginSuccessTargetUrl) {
+        if (StringUtils.isNotEmpty(loginSuccessTargetUrl)) {
+            this.loginSuccessTargetUrl = loginSuccessTargetUrl;
+        }
+    }
+
+    /**
+     * Sets the login failure target URL. Default value ({@value #DEFAULT_LOGINFAILURETARGETURL}).
+     * @param loginFailureTargetUrl The URL
+     */
+    public void setLoginFailureTargetUrl(String loginFailureTargetUrl) {
+        if (StringUtils.isNotEmpty(loginFailureTargetUrl)) {
+            this.loginFailureTargetUrl = loginFailureTargetUrl;
+        }
     }
 }

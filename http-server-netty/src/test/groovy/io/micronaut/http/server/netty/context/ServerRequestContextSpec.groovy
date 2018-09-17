@@ -44,23 +44,21 @@ class ServerRequestContextSpec extends Specification {
         "thread" | '/test-context/thread'
     }
 
-
     @Client('/test-context')
     static interface TestClient {
 
-        @Get
+        @Get("/method")
         String method()
 
-        @Get
+        @Get("/rxjava")
         String rxjava()
 
-        @Get
+        @Get("/reactor")
         String reactor()
 
-        @Get
+        @Get("/thread")
         String thread()
     }
-
 
     @Controller('/test-context')
     @Produces(MediaType.TEXT_PLAIN)
@@ -70,13 +68,13 @@ class ServerRequestContextSpec extends Specification {
         @Named(TaskExecutors.IO)
         ExecutorService executorService
 
-        @Get
+        @Get("/method")
         String method() {
             def request = ServerRequestContext.currentRequest().orElseThrow { -> new RuntimeException("no request") }
             request.uri
         }
 
-        @Get
+        @Get("/rxjava")
         Single<String> rxjava() {
             Single.fromCallable({ ->
                 def request = ServerRequestContext.currentRequest().orElseThrow { -> new RuntimeException("no request")
@@ -85,7 +83,7 @@ class ServerRequestContextSpec extends Specification {
             }).subscribeOn(Schedulers.computation())
         }
 
-        @Get
+        @Get("/reactor")
         Mono<String> reactor() {
             Mono.fromCallable({ ->
                 def request = ServerRequestContext.currentRequest().orElseThrow { -> new RuntimeException("no request")
@@ -94,7 +92,7 @@ class ServerRequestContextSpec extends Specification {
             }).subscribeOn(reactor.core.scheduler.Schedulers.elastic())
         }
 
-        @Get
+        @Get("/thread")
         String thread() {
             CompletableFuture future = new CompletableFuture()
             executorService.submit({ ->

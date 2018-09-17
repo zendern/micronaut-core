@@ -16,6 +16,7 @@
 
 package io.micronaut.http.ssl;
 
+import io.micronaut.core.util.StringUtils;
 import io.micronaut.core.util.Toggleable;
 
 import java.util.Optional;
@@ -31,17 +32,41 @@ public class SslConfiguration implements Toggleable {
      * The prefix used to resolve this configuration.
      */
     public static final String PREFIX = "micronaut.ssl";
-    protected boolean enabled = false;
-    protected int port = 8443;
-    protected boolean buildSelfSigned = false;
 
-    protected KeyConfiguration key = new KeyConfiguration();
-    protected KeyStoreConfiguration keyStore = new KeyStoreConfiguration();
-    protected TrustStoreConfiguration trustStore = new TrustStoreConfiguration();
-    protected ClientAuthentication clientAuthentication;
-    protected String[] ciphers;
-    protected String[] protocols;
-    protected String protocol = "TLS";
+    /**
+     * The default enable value.
+     */
+    @SuppressWarnings("WeakerAccess")
+    public static final boolean DEFAULT_ENABLED = false;
+
+    /**
+     * The default port value.
+     */
+    @SuppressWarnings("WeakerAccess")
+    public static final int DEFAULT_PORT = 8443;
+
+    /**
+     * The default build self signed value.
+     */
+    @SuppressWarnings("WeakerAccess")
+    public static final boolean DEFAULT_BUILDSELFSIGNED = false;
+
+    /**
+     * The default protocol.
+     */
+    @SuppressWarnings("WeakerAccess")
+    public static final String DEFAULT_PROTOCOL = "TLS";
+
+    private boolean enabled = DEFAULT_ENABLED;
+    private int port = DEFAULT_PORT;
+    private boolean buildSelfSigned = DEFAULT_BUILDSELFSIGNED;
+    private KeyConfiguration key = new KeyConfiguration();
+    private KeyStoreConfiguration keyStore = new KeyStoreConfiguration();
+    private TrustStoreConfiguration trustStore = new TrustStoreConfiguration();
+    private ClientAuthentication clientAuthentication;
+    private String[] ciphers;
+    private String[] protocols;
+    private String protocol = DEFAULT_PROTOCOL;
 
     /**
      * @return Whether SSL is enabled.
@@ -52,7 +77,7 @@ public class SslConfiguration implements Toggleable {
     }
 
     /**
-     * Whether SSL is enabled.
+     * Whether SSL is enabled. Default value ({@value io.micronaut.http.ssl.SslConfiguration#DEFAULT_ENABLED}).
      *
      * @param enabled True if SSL is enabled
      */
@@ -124,6 +149,92 @@ public class SslConfiguration implements Toggleable {
     }
 
     /**
+     * Sets the SSL port. Default value ({@value io.micronaut.http.ssl.SslConfiguration#DEFAULT_PORT}).
+     *
+     * @param port The port
+     */
+    public void setPort(int port) {
+        this.port = port;
+    }
+
+    /**
+     * Sets whether to build a self signed certificate. Default value ({@value io.micronaut.http.ssl.SslConfiguration#DEFAULT_BUILDSELFSIGNED}).
+     *
+     * @param buildSelfSigned True if a certificate should be built
+     */
+    public void setBuildSelfSigned(boolean buildSelfSigned) {
+        this.buildSelfSigned = buildSelfSigned;
+    }
+
+    /**
+     * Sets the key configuration.
+     * @param key The key configuration
+     */
+    public void setKey(KeyConfiguration key) {
+        if (key != null) {
+            this.key = key;
+        }
+    }
+
+    /**
+     * Sets the keystore configuration.
+     *
+     * @param keyStore The keystore configuration
+     */
+    public void setKeyStore(KeyStoreConfiguration keyStore) {
+        if (keyStore != null) {
+            this.keyStore = keyStore;
+        }
+    }
+
+    /**
+     * Sets the trust store configuration.
+     *
+     * @param trustStore The trust store.
+     */
+    public void setTrustStore(TrustStoreConfiguration trustStore) {
+        this.trustStore = trustStore;
+    }
+
+    /**
+     * Sets the client authentication mode.
+     *
+     * @param clientAuthentication The client authentication mode
+     */
+    public void setClientAuthentication(ClientAuthentication clientAuthentication) {
+        this.clientAuthentication = clientAuthentication;
+    }
+
+    /**
+     * Sets the ciphers to use.
+     *
+     * @param ciphers The ciphers
+     */
+    public void setCiphers(String[] ciphers) {
+        this.ciphers = ciphers;
+    }
+
+    /**
+     * Sets the protocols to use.
+     *
+     * @param protocols The protocols
+     */
+    public void setProtocols(String[] protocols) {
+        this.protocols = protocols;
+    }
+
+    /**
+     * Sets the protocol to use. Default value ({@value io.micronaut.http.ssl.SslConfiguration#DEFAULT_PROTOCOL}).
+     *
+     * @param protocol The protocol
+     */
+    public void setProtocol(String protocol) {
+        if (!StringUtils.isNotEmpty(protocol)) {
+            this.protocol = protocol;
+        }
+    }
+
+    /**
      * Reads an existing config.
      *
      * @param defaultSslConfiguration The default SSL config
@@ -162,8 +273,8 @@ public class SslConfiguration implements Toggleable {
 
     public static class KeyConfiguration {
         public static final String PREFIX = "key";
-        protected String password;
-        protected String alias;
+        private String password;
+        private String alias;
 
         /**
          * @return The password of the key
@@ -178,6 +289,24 @@ public class SslConfiguration implements Toggleable {
         public Optional<String> getAlias() {
             return Optional.ofNullable(alias);
         }
+
+        /**
+         * Sets the password.
+         *
+         * @param password The password
+         */
+        public void setPassword(String password) {
+            this.password = password;
+        }
+
+        /**
+         * Sets the alias.
+         *
+         * @param alias The alias
+         */
+        public void setAlias(String alias) {
+            this.alias = alias;
+        }
     }
 
     /**
@@ -185,10 +314,10 @@ public class SslConfiguration implements Toggleable {
      */
     public static class KeyStoreConfiguration {
         public static final String PREFIX = "key-store";
-        protected String path;
-        protected String password;
-        protected String type;
-        protected String provider;
+        private String path;
+        private String password;
+        private String type;
+        private String provider;
 
         /**
          * @return The path to the key store (typically .jks). Can use classpath: and file:.
@@ -217,6 +346,42 @@ public class SslConfiguration implements Toggleable {
         public Optional<String> getProvider() {
             return Optional.ofNullable(provider);
         }
+
+        /**
+         * Sets the path.
+         *
+         * @param path The path
+         */
+        public void setPath(String path) {
+            this.path = path;
+        }
+
+        /**
+         * Sets the password to use for the keystore.
+         *
+         * @param password The password
+         */
+        public void setPassword(String password) {
+            this.password = password;
+        }
+
+        /**
+         * Sets the type of keystore.
+         *
+         * @param type The keystore type
+         */
+        public void setType(String type) {
+            this.type = type;
+        }
+
+        /**
+         * Sets the keystore provider name.
+         *
+         * @param provider The provider
+         */
+        public void setProvider(String provider) {
+            this.provider = provider;
+        }
     }
 
     /**
@@ -224,10 +389,10 @@ public class SslConfiguration implements Toggleable {
      */
     public static class TrustStoreConfiguration {
         public static final String PREFIX = "trust-store";
-        protected String path;
-        protected String password;
-        protected String type;
-        protected String provider;
+        private String path;
+        private String password;
+        private String type;
+        private String provider;
 
         /**
          * @return The path to the trust store (typically .jks). Can use classpath: and file:.
@@ -255,6 +420,42 @@ public class SslConfiguration implements Toggleable {
          */
         public Optional<String> getProvider() {
             return Optional.ofNullable(provider);
+        }
+
+        /**
+         * Sets the path.
+         *
+         * @param path The path
+         */
+        public void setPath(String path) {
+            this.path = path;
+        }
+
+        /**
+         * Sets the password to use for the keystore.
+         *
+         * @param password The password
+         */
+        public void setPassword(String password) {
+            this.password = password;
+        }
+
+        /**
+         * Sets the type of keystore.
+         *
+         * @param type The keystore type
+         */
+        public void setType(String type) {
+            this.type = type;
+        }
+
+        /**
+         * Sets the keystore provider name.
+         *
+         * @param provider The provider
+         */
+        public void setProvider(String provider) {
+            this.provider = provider;
         }
     }
 }

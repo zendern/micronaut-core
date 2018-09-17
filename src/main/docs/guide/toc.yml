@@ -29,6 +29,7 @@ ioc:
   replaces: Bean Replacement
   beanConfigurations: Bean Configurations
   lifecycle: Life-Cycle Methods
+  contextEvents: Context Events
   events: Bean Events
   annotationMetadata: Bean Annotation Metadata
   springBeans: Micronaut Beans And Spring
@@ -47,6 +48,7 @@ aop:
   title: Aspect Oriented Programming
   aroundAdvice: Around Advice
   introductionAdvice: Introduction Advice
+  adapterAdvice: Method Adapter Advice
   validation:
     title: Validation Advice
   caching: 
@@ -73,21 +75,29 @@ httpServer:
   jsonBinding: JSON Binding with Jackson
   datavalidation: Data Validation
   staticResources: Serving Static Resources
-#  contentNegotiation: Content Negotiation
   errorHandling: Error Handling
   formData: Handling Form Data
   serverIO: Writing Response Data
   uploads: File Uploads
   transfers: File Transfers
-  sse: Server Sent Events
   filters: HTTP Filters
   sessions: HTTP Sessions
+  sse: Server Sent Events
+  websocket:
+    title: WebSocket Support
+    websocketServer: Using @ServerWebSocket
+    websocketClient: Using @ClientWebSocket
   serverEvents: Server Events
   serverConfiguration:
     title: Configuring the HTTP Server
     threadPools: Configuring Server Thread Pools
     cors: Configuring CORS
-    https: Securing the Server with HTTPS  
+    https: Securing the Server with HTTPS
+  views:
+    title: Server Side View Rendering
+    thymeleaf: Thymeleaf
+    handlebars: Handlebars.java
+    velocity: Apache Velocity
 httpClient:
   title: The HTTP Client
   lowLevelHttpClient:
@@ -107,19 +117,21 @@ httpClient:
     clientFallback: Client Fallbacks
     netflixHystrix: Netflix Hystrix Support
   clientFilter: HTTP Client Filters
+  clientSample: HTTP Client Sample
 cloud:
   title: Cloud Native Features
   cloudConfiguration:
     title: Cloud Configuration
     distributedConfiguration: Distributed Configuration
     distributedConfigurationConsul: Consul Support
-#    distributedConfigurationAwsParameterStore: AWS Parameter Store Support
+    distributedConfigurationAwsParameterStore: AWS Parameter Store Support
   serviceDiscovery:
     title: Service Discovery
     serviceDiscoveryConsul: Consul Support
     serviceDiscoveryEureka: Eureka Support
     serviceDiscoveryKubernetes: Kubernetes Support
-#    serviceDiscoveryRoute53: AWS Route 53 Support
+    serviceDiscoveryRoute53: AWS Route 53 Support
+    serviceDiscoveryManual: Manual Service Discovery Configuration
   clientSideLoadBalancing:
     title: Client Side Load Balancing
     netflixRibbon: Netflix Ribbon Support
@@ -138,7 +150,10 @@ serverlessFunctions:
     title: Running Functions
     functionWeb: Functions as Web Applications
     functionCLI: Functions as CLI Applications
-  lambdaFunctions: Deploying Functions to AWS Lambda 
+  deployingFunctions:
+    title: Deploying Functions
+    lambdaFunctions: Deploying Functions to AWS Lambda
+    openFaasFunctions: Deploying Functions to OpenFaaS
   callingFunctions: Calling Functions with FunctionClient
 messaging:
   title: Message-Driven Microservices
@@ -165,6 +180,12 @@ messaging:
       title: Running Kafka Applications
       kafkaHealth: Kafka Health Checks
     kafkaStream: Building Kafka Stream Applications
+commandLineApps:
+  title: Standalone Command Line Applications
+  picocli:
+    title: Picocli Support
+    picocliGenerateProject: Generating a Project with the Micronaut CLI
+    picocliQuickStart: Picocli Quick Start
 configurations:
   title: Configurations
   dataAccess:
@@ -188,6 +209,10 @@ languageSupport:
     kaptintellij: Kotlin, Kapt and IntelliJ
     openandaop: Kotlin and AOP Advice
     kotlinretainparamnames: Kotlin and Retaining Parameter Names
+  graal:
+    title: Micronaut for GraalVM
+    graalServices: Microservices as GraalVM native images
+    graalFAQ: GraalVM and Micronaut FAQ
 management:
   title: Management & Monitoring
   buildingEndpoints:
@@ -232,6 +257,7 @@ security:
       claimsGeneration: Claims Generation
       render:
         title: Token Render
+      tokenPropagation: Token Propagation
   endpoints:
     title: Built-In Security Controllers
     login: Login Controller
@@ -239,6 +265,10 @@ security:
     refresh: Refresh Controller
   retrievingAuthenticatedUser: Retrieve the authenticated user
   securityEvents: Security Events
+  ldap:
+    title: LDAP Authentication
+    configuration: Configuration
+    extending: Extending Default Behavior
 cli:
   title: Micronaut CLI
   createProject: Creating a Project
@@ -256,5 +286,6 @@ cli:
 appendix:
   title: Appendices
   faq: Frequently Asked Questions (FAQ)
+  usingsnapshots: Using Snapshots
   problems: Common Problems
   breaks: Breaking Changes

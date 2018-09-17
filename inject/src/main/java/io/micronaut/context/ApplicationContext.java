@@ -29,9 +29,29 @@ import java.util.Map;
 import java.util.function.Consumer;
 
 /**
- * An application context extends a {@link BeanContext} and adds the concepts of configuration, environments and
- * runtimes.
+ * <p>An application context extends a {@link BeanContext} and adds the concepts of configuration, environments and
+ *   runtimes.</p>
+ * <p>
+ * <p>The {@link ApplicationContext} is the main entry point for starting and running Micronaut applications. It
+ * can be though of as a container object for all dependency injected objects.</p>
+ * <p>
+ * <p>The {@link ApplicationContext} can be started via the {@link #run()} method. For example:</p>
  *
+ * <pre class="code">
+ *     ApplicationContext context = ApplicationContext.run();
+ * </pre>
+ *
+ * <p>Alternatively, the {@link #build()} method can be used to customize the {@code ApplicationContext} using the {@link ApplicationContextBuilder} interface
+ * prior to running. For example:</p>
+ * <pre class="code">
+ *     ApplicationContext context = ApplicationContext.build().environments("test").start();
+ * </pre>
+ *
+ * <p>The {@link #getEnvironment()} method can be used to obtain a reference to the application {@link Environment}, which contains the loaded configuration
+ * and active environment names.</p>
+ *
+ * @see ApplicationContextBuilder
+ * @see Environment
  * @author Graeme Rocher
  * @since 1.0
  */
@@ -161,7 +181,7 @@ public interface ApplicationContext extends BeanContext, PropertyResolver, Prope
      * @param <T>          The type
      * @return The running bean
      */
-    static <T extends ApplicationContextLifeCyle> T run(Class<T> type, String... environments) {
+    static <T extends AutoCloseable> T run(Class<T> type, String... environments) {
         return run(type, Collections.emptyMap(), environments);
     }
 
@@ -177,7 +197,7 @@ public interface ApplicationContext extends BeanContext, PropertyResolver, Prope
      * @param <T>          The type
      * @return The running bean
      */
-    static <T extends ApplicationContextLifeCyle> T run(Class<T> type, Map<String, Object> properties, String... environments) {
+    static <T extends AutoCloseable> T run(Class<T> type, Map<String, Object> properties, String... environments) {
         PropertySource propertySource = PropertySource.of(PropertySource.CONTEXT, properties, SystemPropertiesPropertySource.POSITION + 100);
         return run(type, propertySource, environments);
     }
@@ -194,15 +214,18 @@ public interface ApplicationContext extends BeanContext, PropertyResolver, Prope
      * @param <T>            The type
      * @return The running {@link BeanContext}
      */
-    static <T extends ApplicationContextLifeCyle> T run(Class<T> type, PropertySource propertySource, String... environments) {
+    static <T extends AutoCloseable> T run(Class<T> type, PropertySource propertySource, String... environments) {
         T bean = build(environments)
             .mainClass(type)
             .propertySources(propertySource)
             .start()
             .getBean(type);
         if (bean != null) {
-            if (!bean.isRunning()) {
-                bean.start();
+            if (bean instanceof LifeCycle) {
+                LifeCycle lifeCycle = (LifeCycle) bean;
+                if (!lifeCycle.isRunning()) {
+                    lifeCycle.start();
+                }
             }
         }
 

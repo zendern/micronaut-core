@@ -30,7 +30,13 @@ import java.util.OptionalInt;
 @ConfigurationProperties(SessionSettings.PREFIX)
 public class SessionConfiguration {
 
-    private Duration maxInactiveInterval = Duration.ofMinutes(30);
+    /**
+     * The default max inactive interval in seconds.
+     */
+    @SuppressWarnings("WeakerAccess")
+    public static final int DEFAULT_MAXINACTIVEINTERVAL_SECONDS = 30;
+
+    private Duration maxInactiveInterval = Duration.ofMinutes(DEFAULT_MAXINACTIVEINTERVAL_SECONDS);
     private Integer maxActiveSessions;
 
     /**
@@ -41,11 +47,11 @@ public class SessionConfiguration {
     }
 
     /**
-     * Sets the maximum number of active sessions.
+     * Sets the maximum number of active sessions. Default value ({@value #DEFAULT_MAXINACTIVEINTERVAL_SECONDS} seconds).
      *
      * @param maxActiveSessions The max active sessions
      */
-    protected void setMaxActiveSessions(Integer maxActiveSessions) {
+    public void setMaxActiveSessions(Integer maxActiveSessions) {
         this.maxActiveSessions = maxActiveSessions;
     }
 
@@ -61,7 +67,7 @@ public class SessionConfiguration {
      *
      * @param maxInactiveInterval The max inactive interval
      */
-    protected void setMaxInactiveInterval(Duration maxInactiveInterval) {
+    public void setMaxInactiveInterval(Duration maxInactiveInterval) {
         if (maxInactiveInterval != null) {
             this.maxInactiveInterval = maxInactiveInterval;
         }

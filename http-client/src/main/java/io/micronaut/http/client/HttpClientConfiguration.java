@@ -17,6 +17,7 @@
 package io.micronaut.http.client;
 
 import io.micronaut.core.convert.format.ReadableBytes;
+import io.micronaut.core.util.Toggleable;
 import io.micronaut.http.ssl.ClientSslConfiguration;
 import io.micronaut.http.ssl.SslConfiguration;
 import io.micronaut.runtime.ApplicationConfiguration;
@@ -43,6 +44,36 @@ import java.util.concurrent.ThreadFactory;
  */
 public abstract class HttpClientConfiguration {
 
+    /**
+     * The default read timeout in seconds.
+     */
+    @SuppressWarnings("WeakerAccess")
+    public static final long DEFAULT_READTIMEOUT_SECONDS = 10;
+
+    /**
+     * The default read timeout in seconds.
+     */
+    @SuppressWarnings("WeakerAccess")
+    public static final long DEFAULT_READIDLETIMEOUT_SECONDS = 60;
+
+    /**
+     * The default shutdown timeout in millis.
+     */
+    @SuppressWarnings("WeakerAccess")
+    public static final long DEFAULT_SHUTDOWNTIMEOUT_MILLISECONDS = 100;
+
+    /**
+     * The default shutdown timeout in millis.
+     */
+    @SuppressWarnings("WeakerAccess")
+    public static final int DEFAULT_MAXCONTENTLENGTH = 1024 * 1024 * 10; // 10MB;
+
+    /**
+     * The default follow redirects value.
+     */
+    @SuppressWarnings("WeakerAccess")
+    public static final boolean DEFAULT_FOLLOWREDIRECTS = true;
+
     private Map<ChannelOption, Object> channelOptions = Collections.emptyMap();
 
     private Integer numOfThreads = null;
@@ -54,13 +85,13 @@ public abstract class HttpClientConfiguration {
 
     private Duration connectTimeout;
 
-    private Duration readTimeout = Duration.ofSeconds(10);
+    private Duration readTimeout = Duration.ofSeconds(DEFAULT_READTIMEOUT_SECONDS);
 
-    private Duration readIdleTime = Duration.of(60, ChronoUnit.SECONDS);
+    private Duration readIdleTime = Duration.of(DEFAULT_READIDLETIMEOUT_SECONDS, ChronoUnit.SECONDS);
 
-    private Duration shutdownTimeout = Duration.ofMillis(100);
+    private Duration shutdownTimeout = Duration.ofMillis(DEFAULT_SHUTDOWNTIMEOUT_MILLISECONDS);
 
-    private int maxContentLength = 1024 * 1024 * 10; // 10MB;
+    private int maxContentLength = DEFAULT_MAXCONTENTLENGTH;
 
     private Proxy.Type proxyType = Proxy.Type.DIRECT;
 
@@ -72,7 +103,7 @@ public abstract class HttpClientConfiguration {
 
     private Charset defaultCharset = StandardCharsets.UTF_8;
 
-    private boolean followRedirects = true;
+    private boolean followRedirects = DEFAULT_FOLLOWREDIRECTS;
 
     private SslConfiguration sslConfiguration = new ClientSslConfiguration();
 
@@ -90,6 +121,13 @@ public abstract class HttpClientConfiguration {
             this.defaultCharset = applicationConfiguration.getDefaultCharset();
         }
     }
+
+    /**
+     * Obtains the connection pool configuration.
+     *
+     * @return The connection pool configuration.
+     */
+    public abstract ConnectionPoolConfiguration getConnectionPoolConfiguration();
 
     /**
      * @return The {@link SslConfiguration} for the client
@@ -115,7 +153,7 @@ public abstract class HttpClientConfiguration {
     }
 
     /**
-     * Sets whether redirects should be followed (defaults to true).
+     * Sets whether redirects should be followed. Default value ({@link io.micronaut.http.client.HttpClientConfiguration#DEFAULT_FOLLOWREDIRECTS}).
      *
      * @param followRedirects Whether redirects should be followed
      */
@@ -131,7 +169,7 @@ public abstract class HttpClientConfiguration {
     }
 
     /**
-     * Sets the default charset to use.
+     * Sets the default charset to use. Default value (UTF-8);
      *
      * @param defaultCharset The charset to use
      */
@@ -164,7 +202,7 @@ public abstract class HttpClientConfiguration {
 
 
     /**
-     * For streaming requests, the {@link #getReadTimeout()} method does not apply instead a configurable
+     * For streaming requests and WebSockets, the {@link #getReadTimeout()} method does not apply instead a configurable
      * idle timeout is applied.
      *
      * @return The default amount of time to allow read operation connections  to remain idle
@@ -191,7 +229,7 @@ public abstract class HttpClientConfiguration {
     }
 
     /**
-     * Sets the amount of time to wait for shutdown of client thread pools.
+     * Sets the amount of time to wait for shutdown of client thread pools. Default value ({@value io.micronaut.http.client.HttpClientConfiguration#DEFAULT_SHUTDOWNTIMEOUT_MILLISECONDS} milliseconds).
      *
      * @param shutdownTimeout The shutdown time
      */
@@ -200,7 +238,7 @@ public abstract class HttpClientConfiguration {
     }
 
     /**
-     * Sets the read timeout.
+     * Sets the read timeout. Default value ({@value io.micronaut.http.client.HttpClientConfiguration#DEFAULT_READTIMEOUT_SECONDS} seconds).
      *
      * @param readTimeout The read timeout
      */
@@ -209,7 +247,7 @@ public abstract class HttpClientConfiguration {
     }
 
     /**
-     * Sets the max read idle time for streaming requests.
+     * Sets the max read idle time for streaming requests. Default value ({@value io.micronaut.http.client.HttpClientConfiguration#DEFAULT_READIDLETIMEOUT_SECONDS} seconds).
      *
      * @param readIdleTime The read idle time
      */
@@ -266,7 +304,7 @@ public abstract class HttpClientConfiguration {
     }
 
     /**
-     * Sets the maximum content length the client can consume.
+     * Sets the maximum content length the client can consume. Default value ({@value io.micronaut.http.client.HttpClientConfiguration#DEFAULT_MAXCONTENTLENGTH} => 10MB).
      *
      * @param maxContentLength The maximum content length the client can consume
      */
@@ -345,5 +383,108 @@ public abstract class HttpClientConfiguration {
      */
     public void setProxyPassword(String proxyPassword) {
         this.proxyPassword = proxyPassword;
+    }
+
+    /**
+     * Configuration for the HTTP client connnection pool.
+     */
+    public static class ConnectionPoolConfiguration implements Toggleable {
+        /**
+         * The prefix to use for configuration.
+         */
+        public static final String PREFIX = "pool";
+
+        /**
+         * The default enable value.
+         */
+        @SuppressWarnings("WeakerAccess")
+        public static final boolean DEFAULT_ENABLED = false;
+
+        /**
+         * The default max connections value.
+         */
+        @SuppressWarnings("WeakerAccess")
+        public static final int DEFAULT_MAXCONNECTIONS = -1;
+
+        private int maxConnections = DEFAULT_MAXCONNECTIONS;
+
+        private int maxPendingAcquires = Integer.MAX_VALUE;
+
+        private Duration acquireTimeout;
+
+        private boolean enabled = DEFAULT_ENABLED;
+
+        /**
+         * Whether connection pooling is enabled.
+         *
+         * @return True if connection pooling is enabled
+         */
+        @Override
+        public boolean isEnabled() {
+            return enabled;
+        }
+
+        /**
+         * Sets whether connection pooling is enabled. Default value ({@value io.micronaut.http.client.HttpClientConfiguration.ConnectionPoolConfiguration#DEFAULT_ENABLED}).
+         *
+         * @param enabled True if it is enabled
+         */
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
+        }
+
+        /**
+         * The maximum number of connections. Defaults to ({@value io.micronaut.http.client.HttpClientConfiguration.ConnectionPoolConfiguration#DEFAULT_MAXCONNECTIONS}); no maximum.
+         *
+         * @return The max connections
+         */
+        public int getMaxConnections() {
+            return maxConnections;
+        }
+
+
+        /**
+         * Sets the maximum number of connections. Defaults to no maximum.
+         * @param maxConnections The count
+         */
+        public void setMaxConnections(int maxConnections) {
+            this.maxConnections = maxConnections;
+        }
+
+        /**
+         * Maximum number of futures awaiting connection acquisition. Defaults to no maximum.
+         *
+         * @return The max pending requires
+         */
+        public int getMaxPendingAcquires() {
+            return maxPendingAcquires;
+        }
+
+        /**
+         * Sets the max pending acquires.
+         *
+         * @param maxPendingAcquires The max pending acquires
+         */
+        public void setMaxPendingAcquires(int maxPendingAcquires) {
+            this.maxPendingAcquires = maxPendingAcquires;
+        }
+
+        /**
+         * The time to wait to acquire a connection.
+         *
+         * @return The timeout as a duration.
+         */
+        public Optional<Duration> getAcquireTimeout() {
+            return Optional.ofNullable(acquireTimeout);
+        }
+
+        /**
+         * Sets the timeout to wait for a connection.
+         *
+         * @param acquireTimeout The acquire timeout
+         */
+        public void setAcquireTimeout(@Nullable Duration acquireTimeout) {
+            this.acquireTimeout = acquireTimeout;
+        }
     }
 }

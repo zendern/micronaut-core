@@ -49,10 +49,16 @@ public class BraveTracerConfiguration implements Toggleable {
     public static final String PREFIX = "tracing.zipkin";
     public static final float DEFAULT_SAMPLER_PROBABILITY = 0.1f;
 
+    /**
+     * The default enable value.
+     */
+    @SuppressWarnings("WeakerAccess")
+    public static final boolean DEFAULT_ENABLED = false;
+
     @ConfigurationBuilder(prefixes = "", excludes = {"errorParser", "clock", "endpoint", "spanReporter", "propagationFactory", "currentTraceContext", "sampler"})
     protected Tracing.Builder tracingBuilder = Tracing.newBuilder();
 
-    private boolean enabled = false;
+    private boolean enabled = DEFAULT_ENABLED;
     private float samplerProbability = DEFAULT_SAMPLER_PROBABILITY;
 
     /**
@@ -78,6 +84,7 @@ public class BraveTracerConfiguration implements Toggleable {
     }
 
     /**
+     * Default value ({@value #DEFAULT_ENABLED}).
      * @param enabled True if tracing is enabled
      */
     public void setEnabled(boolean enabled) {
@@ -169,6 +176,11 @@ public class BraveTracerConfiguration implements Toggleable {
          */
         public HttpClientSenderConfiguration() {
             this.clientSenderBuilder = new HttpClientSender.Builder(this);
+        }
+
+        @Override
+        public ConnectionPoolConfiguration getConnectionPoolConfiguration() {
+            return new ConnectionPoolConfiguration();
         }
 
         /**

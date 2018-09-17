@@ -23,6 +23,7 @@ import io.micronaut.http.HttpRequest;
 import io.micronaut.http.HttpStatus;
 import io.micronaut.http.filter.HttpFilter;
 
+import javax.inject.Inject;
 import javax.inject.Singleton;
 import java.net.URI;
 import java.util.*;
@@ -49,7 +50,8 @@ public class DefaultRouter implements Router {
      *
      * @param builders The builders
      */
-    public DefaultRouter(RouteBuilder... builders) {
+    @Inject
+    public DefaultRouter(Collection<RouteBuilder> builders) {
         List<UriRoute> getRoutes = new ArrayList<>();
         List<UriRoute> putRoutes = new ArrayList<>();
         List<UriRoute> postRoutes = new ArrayList<>();
@@ -136,9 +138,18 @@ public class DefaultRouter implements Router {
         }
     }
 
+    /**
+     * Construct a new router for the given route builders.
+     *
+     * @param builders The builders
+     */
+    public DefaultRouter(RouteBuilder... builders) {
+        this(Arrays.asList(builders));
+    }
+
     @SuppressWarnings("unchecked")
     @Override
-    public <T> Stream<UriRouteMatch<T>> find(HttpMethod httpMethod, CharSequence uri) {
+    public <T, R> Stream<UriRouteMatch<T, R>> find(HttpMethod httpMethod, CharSequence uri) {
         UriRoute[] routes = routesByMethod[httpMethod.ordinal()];
         return Arrays
             .stream(routes)
@@ -155,7 +166,7 @@ public class DefaultRouter implements Router {
     }
 
     @Override
-    public <T> Optional<UriRouteMatch<T>> route(HttpMethod httpMethod, CharSequence uri) {
+    public <T, R> Optional<UriRouteMatch<T, R>> route(HttpMethod httpMethod, CharSequence uri) {
         UriRoute[] routes = routesByMethod[httpMethod.ordinal()];
         Optional<UriRouteMatch> result = Arrays
             .stream(routes)
@@ -169,10 +180,10 @@ public class DefaultRouter implements Router {
     }
 
     @Override
-    public <T> Optional<RouteMatch<T>> route(HttpStatus status) {
+    public <R> Optional<RouteMatch<R>> route(HttpStatus status) {
         for (StatusRoute statusRoute : routesByStatus) {
             if (statusRoute.originatingType() == null) {
-                Optional<RouteMatch<T>> match = statusRoute.match(status);
+                Optional<RouteMatch<R>> match = statusRoute.match(status);
                 if (match.isPresent()) {
                     return match;
                 }
@@ -182,9 +193,9 @@ public class DefaultRouter implements Router {
     }
 
     @Override
-    public <T> Optional<RouteMatch<T>> route(Class originatingClass, HttpStatus status) {
+    public <R> Optional<RouteMatch<R>> route(Class originatingClass, HttpStatus status) {
         for (StatusRoute statusRoute : routesByStatus) {
-            Optional<RouteMatch<T>> match = statusRoute.match(originatingClass, status);
+            Optional<RouteMatch<R>> match = statusRoute.match(originatingClass, status);
             if (match.isPresent()) {
                 return match;
             }
@@ -193,10 +204,10 @@ public class DefaultRouter implements Router {
     }
 
     @Override
-    public <T> Optional<RouteMatch<T>> route(Class originatingClass, Throwable error) {
-        Map<ErrorRoute, RouteMatch<T>> matchedRoutes = new LinkedHashMap<>();
+    public <R> Optional<RouteMatch<R>> route(Class originatingClass, Throwable error) {
+        Map<ErrorRoute, RouteMatch<R>> matchedRoutes = new LinkedHashMap<>();
         for (ErrorRoute errorRoute : errorRoutes) {
-            Optional<RouteMatch<T>> match = errorRoute.match(originatingClass, error);
+            Optional<RouteMatch<R>> match = errorRoute.match(originatingClass, error);
             match.ifPresent((m) -> {
                 matchedRoutes.put(errorRoute, m);
             });
@@ -205,14 +216,12 @@ public class DefaultRouter implements Router {
     }
 
     @Override
-    public <T> Optional<RouteMatch<T>> route(Throwable error) {
-        Map<ErrorRoute, RouteMatch<T>> matchedRoutes = new LinkedHashMap<>();
+    public <R> Optional<RouteMatch<R>> route(Throwable error) {
+        Map<ErrorRoute, RouteMatch<R>> matchedRoutes = new LinkedHashMap<>();
         for (ErrorRoute errorRoute : errorRoutes) {
             if (errorRoute.originatingType() == null) {
-                Optional<RouteMatch<T>> match = errorRoute.match(error);
-                match.ifPresent((m) -> {
-                    matchedRoutes.put(errorRoute, m);
-                });
+                Optional<RouteMatch<R>> match = errorRoute.match(error);
+                match.ifPresent((m) -> matchedRoutes.put(errorRoute, m));
             }
         }
 
@@ -238,7 +247,7 @@ public class DefaultRouter implements Router {
 
     @SuppressWarnings("unchecked")
     @Override
-    public <T> Stream<UriRouteMatch<T>> findAny(CharSequence uri) {
+    public <T, R> Stream<UriRouteMatch<T, R>> findAny(CharSequence uri) {
         return Arrays
             .stream(routesByMethod)
             .filter(Objects::nonNull)

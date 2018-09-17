@@ -38,6 +38,9 @@ import io.micronaut.security.handlers.LoginHandler;
 import io.micronaut.security.rules.SecurityRule;
 import io.reactivex.Flowable;
 import io.reactivex.Single;
+import io.micronaut.validation.Validated;
+
+import javax.validation.Valid;
 
 /**
  * Handles login requests.
@@ -49,6 +52,7 @@ import io.reactivex.Single;
 @Requires(property = LoginControllerConfigurationProperties.PREFIX + ".enabled")
 @Controller("${" + LoginControllerConfigurationProperties.PREFIX + ".path:/login}")
 @Secured(SecurityRule.IS_ANONYMOUS)
+@Validated
 public class LoginController {
 
     protected final Authenticator authenticator;
@@ -74,8 +78,8 @@ public class LoginController {
      * @return An AccessRefreshToken encapsulated in the HttpResponse or a failure indicated by the HTTP status
      */
     @Consumes({MediaType.APPLICATION_FORM_URLENCODED, MediaType.APPLICATION_JSON})
-    @Post("/")
-    public Single<HttpResponse> login(@Body UsernamePasswordCredentials usernamePasswordCredentials, HttpRequest<?> request) {
+    @Post
+    public Single<HttpResponse> login(@Valid @Body UsernamePasswordCredentials usernamePasswordCredentials, HttpRequest<?> request) {
         Flowable<AuthenticationResponse> authenticationResponseFlowable = Flowable.fromPublisher(authenticator.authenticate(usernamePasswordCredentials));
 
         return authenticationResponseFlowable.map(authenticationResponse -> {

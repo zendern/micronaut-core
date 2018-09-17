@@ -22,6 +22,7 @@ import io.micronaut.context.env.Environment;
 import io.micronaut.core.convert.ConversionService;
 import io.micronaut.core.naming.NameUtils;
 import io.micronaut.core.naming.conventions.TypeConvention;
+import io.micronaut.core.type.Argument;
 import io.micronaut.core.util.StringUtils;
 import io.micronaut.http.HttpMethod;
 import io.micronaut.http.HttpRequest;
@@ -31,20 +32,18 @@ import io.micronaut.http.annotation.Produces;
 import io.micronaut.http.filter.HttpFilter;
 import io.micronaut.http.uri.UriMatchInfo;
 import io.micronaut.http.uri.UriMatchTemplate;
+import io.micronaut.inject.BeanDefinition;
+import io.micronaut.inject.ExecutableMethod;
 import io.micronaut.inject.MethodExecutionHandle;
+import io.micronaut.inject.qualifiers.Qualifiers;
 import io.micronaut.web.router.exceptions.RoutingException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.inject.Qualifier;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -180,9 +179,9 @@ public abstract class DefaultRouteBuilder implements RouteBuilder {
         if (this.statusRoutes.stream().anyMatch((route) -> route.status() == status && route.originatingType() == originatingClass)) {
             throw new RoutingException("Attempted to register multiple local routes for http status " + String.valueOf(status.getCode()));
         }
-        Optional<MethodExecutionHandle<Object>> executionHandle = executionHandleLocator.findExecutionHandle(type, method, parameterTypes);
+        Optional<MethodExecutionHandle<?, Object>> executionHandle = executionHandleLocator.findExecutionHandle(type, method, parameterTypes);
 
-        MethodExecutionHandle<Object> executableHandle = executionHandle.orElseThrow(() ->
+        MethodExecutionHandle<?, Object> executableHandle = executionHandle.orElseThrow(() ->
                 new RoutingException("No such route: " + type.getName() + "." + method)
         );
 
@@ -197,9 +196,9 @@ public abstract class DefaultRouteBuilder implements RouteBuilder {
         if (this.statusRoutes.stream().anyMatch((route) -> route.status() == status)) {
             throw new RoutingException("Attempted to register multiple global routes for http status " + String.valueOf(status.getCode()));
         }
-        Optional<MethodExecutionHandle<Object>> executionHandle = executionHandleLocator.findExecutionHandle(type, method, parameterTypes);
+        Optional<MethodExecutionHandle<?, Object>> executionHandle = executionHandleLocator.findExecutionHandle(type, method, parameterTypes);
 
-        MethodExecutionHandle<Object> executableHandle = executionHandle.orElseThrow(() ->
+        MethodExecutionHandle<?, Object> executableHandle = executionHandle.orElseThrow(() ->
             new RoutingException("No such route: " + type.getName() + "." + method)
         );
 
@@ -210,9 +209,9 @@ public abstract class DefaultRouteBuilder implements RouteBuilder {
 
     @Override
     public ErrorRoute error(Class originatingClass, Class<? extends Throwable> error, Class type, String method, Class[] parameterTypes) {
-        Optional<MethodExecutionHandle<Object>> executionHandle = executionHandleLocator.findExecutionHandle(type, method, parameterTypes);
+        Optional<MethodExecutionHandle<?, Object>> executionHandle = executionHandleLocator.findExecutionHandle(type, method, parameterTypes);
 
-        MethodExecutionHandle<Object> executableHandle = executionHandle.orElseThrow(() ->
+        MethodExecutionHandle<?, Object> executableHandle = executionHandle.orElseThrow(() ->
             new RoutingException("No such route: " + type.getName() + "." + method)
         );
 
@@ -223,9 +222,9 @@ public abstract class DefaultRouteBuilder implements RouteBuilder {
 
     @Override
     public ErrorRoute error(Class<? extends Throwable> error, Class type, String method, Class[] parameterTypes) {
-        Optional<MethodExecutionHandle<Object>> executionHandle = executionHandleLocator.findExecutionHandle(type, method, parameterTypes);
+        Optional<MethodExecutionHandle<?, Object>> executionHandle = executionHandleLocator.findExecutionHandle(type, method, parameterTypes);
 
-        MethodExecutionHandle<Object> executableHandle = executionHandle.orElseThrow(() ->
+        MethodExecutionHandle<?, Object> executableHandle = executionHandle.orElseThrow(() ->
             new RoutingException("No such route: " + type.getName() + "." + method)
         );
 
@@ -314,6 +313,46 @@ public abstract class DefaultRouteBuilder implements RouteBuilder {
         return buildRoute(HttpMethod.TRACE, uri, type, method, parameterTypes);
     }
 
+    @Override
+    public UriRoute GET(String uri, BeanDefinition<?> beanDefinition, ExecutableMethod<?, ?> method) {
+        return buildBeanRoute(HttpMethod.GET, uri, beanDefinition, method);
+    }
+
+    @Override
+    public UriRoute POST(String uri, BeanDefinition<?> beanDefinition, ExecutableMethod<?, ?> method) {
+        return buildBeanRoute(HttpMethod.POST, uri, beanDefinition, method);
+    }
+
+    @Override
+    public UriRoute PUT(String uri, BeanDefinition<?> beanDefinition, ExecutableMethod<?, ?> method) {
+        return buildBeanRoute(HttpMethod.PUT, uri, beanDefinition, method);
+    }
+
+    @Override
+    public UriRoute PATCH(String uri, BeanDefinition<?> beanDefinition, ExecutableMethod<?, ?> method) {
+        return buildBeanRoute(HttpMethod.PATCH, uri, beanDefinition, method);
+    }
+
+    @Override
+    public UriRoute DELETE(String uri, BeanDefinition<?> beanDefinition, ExecutableMethod<?, ?> method) {
+        return buildBeanRoute(HttpMethod.DELETE, uri, beanDefinition, method);
+    }
+
+    @Override
+    public UriRoute OPTIONS(String uri, BeanDefinition<?> beanDefinition, ExecutableMethod<?, ?> method) {
+        return buildBeanRoute(HttpMethod.OPTIONS, uri, beanDefinition, method);
+    }
+
+    @Override
+    public UriRoute HEAD(String uri, BeanDefinition<?> beanDefinition, ExecutableMethod<?, ?> method) {
+        return buildBeanRoute(HttpMethod.HEAD, uri, beanDefinition, method);
+    }
+
+    @Override
+    public UriRoute TRACE(String uri, BeanDefinition<?> beanDefinition, ExecutableMethod<?, ?> method) {
+        return buildBeanRoute(HttpMethod.TRACE, uri, beanDefinition, method);
+    }
+
     /**
      * Build a route.
      *
@@ -326,12 +365,16 @@ public abstract class DefaultRouteBuilder implements RouteBuilder {
      * @return an {@link UriRoute}
      */
     protected UriRoute buildRoute(HttpMethod httpMethod, String uri, Class<?> type, String method, Class... parameterTypes) {
-        Optional<MethodExecutionHandle<Object>> executionHandle = executionHandleLocator.findExecutionHandle(type, method, parameterTypes);
+        Optional<? extends MethodExecutionHandle<?, Object>> executionHandle = executionHandleLocator.findExecutionHandle(type, method, parameterTypes);
 
-        MethodExecutionHandle<Object> executableHandle = executionHandle.orElseThrow(() ->
+        MethodExecutionHandle<?, Object> executableHandle = executionHandle.orElseThrow(() ->
             new RoutingException("No such route: " + type.getName() + "." + method)
         );
 
+        return buildRoute(httpMethod, uri, executableHandle);
+    }
+
+    private UriRoute buildRoute(HttpMethod httpMethod, String uri, MethodExecutionHandle<?, Object> executableHandle) {
         DefaultUriRoute route;
         if (currentParentRoute != null) {
             route = new DefaultUriRoute(httpMethod, currentParentRoute.uriMatchTemplate.nest(uri), executableHandle);
@@ -343,6 +386,13 @@ public abstract class DefaultRouteBuilder implements RouteBuilder {
         return route;
     }
 
+    private UriRoute buildBeanRoute(HttpMethod httpMethod, String uri, BeanDefinition<?> beanDefinition, ExecutableMethod<?, ?> method) {
+        io.micronaut.context.Qualifier<?> qualifier = beanDefinition.getAnnotationTypeByStereotype(Qualifier.class).map(aClass -> Qualifiers.byAnnotation(beanDefinition, aClass)).orElse(null);
+        MethodExecutionHandle<?, Object> executionHandle = executionHandleLocator.findExecutionHandle(beanDefinition.getBeanType(), qualifier, method.getMethodName(), method.getArgumentTypes())
+                .orElseThrow(() -> new RoutingException("No such route: " + beanDefinition.getBeanType().getName() + "." + method));
+        return buildRoute(httpMethod, uri, executionHandle);
+    }
+
     /**
      * Abstract class for base {@link MethodBasedRoute}.
      */
@@ -352,7 +402,8 @@ public abstract class DefaultRouteBuilder implements RouteBuilder {
         protected final ConversionService<?> conversionService;
         protected List<MediaType> acceptedMediaTypes;
         protected List<MediaType> producesMediaTypes;
-        protected String bodyArgument;
+        protected String bodyArgumentName;
+        protected Argument<?> bodyArgument;
 
         /**
          * @param targetMethod The target method execution handle
@@ -397,6 +448,12 @@ public abstract class DefaultRouteBuilder implements RouteBuilder {
 
         @Override
         public Route body(String argument) {
+            this.bodyArgumentName = argument;
+            return this;
+        }
+
+        @Override
+        public Route body(Argument<?> argument) {
             this.bodyArgument = argument;
             return this;
         }
@@ -557,7 +614,7 @@ public abstract class DefaultRouteBuilder implements RouteBuilder {
     }
 
     /**
-     * Represents a route for an {@link HttpStatus} code.
+     * Represents a route for an {@link io.micronaut.http.HttpStatus} code.
      */
     class DefaultStatusRoute extends AbstractRoute implements StatusRoute, Comparable<StatusRoute> {
 
@@ -634,7 +691,7 @@ public abstract class DefaultRouteBuilder implements RouteBuilder {
         }
 
         /**
-         * @return The {@link HttpStatus}
+         * @return The {@link io.micronaut.http.HttpStatus}
          */
         public HttpStatus getStatus() {
             return status;
@@ -934,6 +991,11 @@ public abstract class DefaultRouteBuilder implements RouteBuilder {
 
         @Override
         public ResourceRoute body(String argument) {
+            return this;
+        }
+
+        @Override
+        public Route body(Argument<?> argument) {
             return this;
         }
 

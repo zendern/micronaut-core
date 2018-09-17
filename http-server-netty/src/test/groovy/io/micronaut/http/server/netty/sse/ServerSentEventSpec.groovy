@@ -37,7 +37,6 @@ import java.time.temporal.ChronoUnit
  */
 class ServerSentEventSpec extends AbstractMicronautSpec {
 
-
     void "test consume event stream object"() {
         given:
         SseClient client = embeddedServer.applicationContext.getBean(SseClient)
@@ -46,15 +45,12 @@ class ServerSentEventSpec extends AbstractMicronautSpec {
         expect:
         events.size() == 4
         events.first().data == new Foo(name: "Foo 1",age:11)
-
     }
 
     void "test consume event stream string"() {
         given:
         SseClient client = embeddedServer.applicationContext.getBean(SseClient)
         List<Event<String>> events = client.string().collectList().block()
-
-
 
         expect:
         events.size() == 4
@@ -71,11 +67,9 @@ class ServerSentEventSpec extends AbstractMicronautSpec {
         events.first().data == new Foo(name: "Foo 1",age:11)
         events.first().id == "1"
         events.first().retry == Duration.ofMinutes(2)
-
     }
 
     void "test receive error from supplier"() {
-
         given:
         SseClient client = embeddedServer.applicationContext.getBean(SseClient)
 
@@ -84,35 +78,32 @@ class ServerSentEventSpec extends AbstractMicronautSpec {
 
         then:
         events.size() == 0
-
     }
-
 
     @Client('/sse')
     static interface SseClient {
 
-        @Get(uri = '/object', processes = MediaType.TEXT_EVENT_STREAM)
+        @Get(value = '/object', processes = MediaType.TEXT_EVENT_STREAM)
         Flux<Event<Foo>> object()
 
-        @Get(uri = '/string', processes = MediaType.TEXT_EVENT_STREAM)
+        @Get(value = '/string', processes = MediaType.TEXT_EVENT_STREAM)
         Flux<Event<String>> string()
 
-        @Get(uri = '/rich', processes = MediaType.TEXT_EVENT_STREAM)
+        @Get(value = '/rich', processes = MediaType.TEXT_EVENT_STREAM)
         Flux<Event<Foo>> rich()
 
-        @Get(uri = '/exception', processes = MediaType.TEXT_EVENT_STREAM)
+        @Get(value = '/exception', processes = MediaType.TEXT_EVENT_STREAM)
         Flux<Event<String>> exception()
 
-        @Get(uri = '/on-error', processes = MediaType.TEXT_EVENT_STREAM)
+        @Get(value = '/on-error', processes = MediaType.TEXT_EVENT_STREAM)
         Flux<Event<String>> onError()
-
     }
 
-    @Controller
+    @Controller('/sse')
     @Requires(property = 'spec.name', value = 'ServerSentEventSpec')
     static class SseController {
 
-        @Get
+        @Get('/object')
         Publisher<Event> object() {
             int i = 0
             Flowable.generate( { io.reactivex.Emitter<Event> emitter ->
@@ -126,7 +117,7 @@ class ServerSentEventSpec extends AbstractMicronautSpec {
             })
         }
 
-        @Get
+        @Get('/rich')
         Publisher<Event> rich() {
             Integer i = 0
             Flowable.generate( { io.reactivex.Emitter<Event> emitter ->
@@ -145,7 +136,7 @@ class ServerSentEventSpec extends AbstractMicronautSpec {
             })
         }
 
-        @Get
+        @Get('/string')
         Publisher<Event> string() {
             int i = 0
             Flowable.generate( { io.reactivex.Emitter<Event> emitter ->
@@ -159,14 +150,14 @@ class ServerSentEventSpec extends AbstractMicronautSpec {
             })
         }
 
-        @Get
+        @Get('/exception')
         Publisher<Event> exception() {
             Flowable.generate( { io.reactivex.Emitter<Event> emitter ->
                 throw new RuntimeException("bad things happened")
             })
         }
 
-        @Get
+        @Get('on-error')
         Publisher<Event> onError() {
             Flowable.generate( { io.reactivex.Emitter<Event> emitter ->
                 emitter.onError(new RuntimeException("bad things happened"))

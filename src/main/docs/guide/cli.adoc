@@ -68,8 +68,6 @@ $ mn
 mn>
 ----
 
-
-
 == Help and Info
 
 General usage information can be viewed using the `help` command.
@@ -113,6 +111,7 @@ mn> list-profiles
 | Available Profiles
 --------------------
   base          The base profile
+  cli           The cli profile
   federation    The federation profile
   function      The function profile
   function-aws  The function profile for AWS Lambda

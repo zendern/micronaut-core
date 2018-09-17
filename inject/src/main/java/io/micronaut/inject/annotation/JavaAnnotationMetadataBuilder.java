@@ -93,6 +93,11 @@ public class JavaAnnotationMetadataBuilder extends AbstractAnnotationMetadataBui
     }
 
     @Override
+    protected Optional<Element> getAnnotationMirror(String annotationName) {
+        return Optional.ofNullable(elementUtils.getTypeElement(annotationName));
+    }
+
+    @Override
     protected Element getTypeForAnnotation(AnnotationMirror annotationMirror) {
         return annotationMirror.getAnnotationType().asElement();
     }
@@ -128,6 +133,21 @@ public class JavaAnnotationMetadataBuilder extends AbstractAnnotationMetadataBui
                 hierarchy.addAll(findOverriddenMethods(executableElement));
             }
             hierarchy.add(element);
+            return hierarchy;
+        } else if (element instanceof VariableElement) {
+            List<Element> hierarchy = new ArrayList<>();
+            VariableElement variable = (VariableElement) element;
+            Element enclosingElement = variable.getEnclosingElement();
+            if (enclosingElement instanceof ExecutableElement) {
+                ExecutableElement executableElement = (ExecutableElement) enclosingElement;
+                if (hasAnnotation(executableElement, Override.class)) {
+                    int variableIdx = executableElement.getParameters().indexOf(variable);
+                    for (ExecutableElement overridden: findOverriddenMethods(executableElement)) {
+                        hierarchy.add(overridden.getParameters().get(variableIdx));
+                    }
+                }
+            }
+            hierarchy.add(variable);
             return hierarchy;
         } else {
             ArrayList<Element> single = new ArrayList<>();

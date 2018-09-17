@@ -50,6 +50,7 @@ public class ConsulConfiguration extends DiscoveryClientConfiguration {
     public static final String PREFIX = "consul.client";
 
     private static final int CONSULT_DEFAULT_PORT = 8500;
+    private final ConsulConnectionPoolConfiguration consulConnectionPoolConfiguration;
 
     private String aslToken;
     private ConsulRegistrationConfiguration registration = new ConsulRegistrationConfiguration();
@@ -61,15 +62,23 @@ public class ConsulConfiguration extends DiscoveryClientConfiguration {
      */
     public ConsulConfiguration() {
         setPort(CONSULT_DEFAULT_PORT);
+        consulConnectionPoolConfiguration = new ConsulConnectionPoolConfiguration();
     }
 
     /**
+     * @param consulConnectionPoolConfiguration The connection pool configuration
      * @param applicationConfiguration The application configuration
      */
     @Inject
-    public ConsulConfiguration(ApplicationConfiguration applicationConfiguration) {
+    public ConsulConfiguration(ConsulConnectionPoolConfiguration consulConnectionPoolConfiguration, ApplicationConfiguration applicationConfiguration) {
         super(applicationConfiguration);
         setPort(CONSULT_DEFAULT_PORT);
+        this.consulConnectionPoolConfiguration = consulConnectionPoolConfiguration;
+    }
+
+    @Override
+    public ConnectionPoolConfiguration getConnectionPoolConfiguration() {
+        return consulConnectionPoolConfiguration;
     }
 
     /**
@@ -276,6 +285,13 @@ public class ConsulConfiguration extends DiscoveryClientConfiguration {
     }
 
     /**
+     * The default connection pool configuration.
+     */
+    @ConfigurationProperties(ConnectionPoolConfiguration.PREFIX)
+    public static class ConsulConnectionPoolConfiguration extends ConnectionPoolConfiguration {
+    }
+
+    /**
      * Configuration class for Consul client registration.
      */
     @ConfigurationProperties(RegistrationConfiguration.PREFIX)
@@ -330,15 +346,34 @@ public class ConsulConfiguration extends DiscoveryClientConfiguration {
          */
         @ConfigurationProperties("check")
         public static class CheckConfiguration implements Toggleable {
+
+            /**
+             * The default enable value.
+             */
+            @SuppressWarnings("WeakerAccess")
+            public static final boolean DEFAULT_ENABLED = true;
+
+            /**
+             * The default http value.
+             */
+            @SuppressWarnings("WeakerAccess")
+            public static final boolean DEFAULT_HTTP = false;
+
+            /**
+             * The default interval seconds.
+             */
+            @SuppressWarnings("WeakerAccess")
+            public static final int DEFAULT_INTERVAL_SECONDS = 15;
+
             private HttpMethod method = HttpMethod.GET;
-            private Duration interval = Duration.ofSeconds(15);
+            private Duration interval = Duration.ofSeconds(DEFAULT_INTERVAL_SECONDS);
             private Map<CharSequence, List<String>> headers = Collections.emptyMap();
             private Duration deregisterCriticalServiceAfter;
             private String notes;
             private String id;
             private Boolean tlsSkipVerify;
-            private boolean enabled = true;
-            private boolean http = false;
+            private boolean enabled = DEFAULT_ENABLED;
+            private boolean http = DEFAULT_HTTP;
 
             /**
              * @return The interval for the checks
@@ -348,6 +383,7 @@ public class ConsulConfiguration extends DiscoveryClientConfiguration {
             }
 
             /**
+             * Default value ({@value #DEFAULT_INTERVAL_SECONDS}).
              * @param interval The interval for the checks
              */
             public void setInterval(Duration interval) {
@@ -362,6 +398,7 @@ public class ConsulConfiguration extends DiscoveryClientConfiguration {
             }
 
             /**
+             * Default value ({@value #DEFAULT_HTTP}).
              * @param http Whether to perform an HTTP check
              */
             public void setHttp(boolean http) {
@@ -377,6 +414,7 @@ public class ConsulConfiguration extends DiscoveryClientConfiguration {
             }
 
             /**
+             * Default value ({@value #DEFAULT_ENABLED}).
              * @param enabled Whether the check module is enabled
              */
             public void setEnabled(boolean enabled) {

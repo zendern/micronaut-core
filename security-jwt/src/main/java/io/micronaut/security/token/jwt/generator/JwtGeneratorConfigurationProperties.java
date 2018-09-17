@@ -32,8 +32,8 @@ public class JwtGeneratorConfigurationProperties implements JwtGeneratorConfigur
 
     private static final Integer DEFAULT_EXPIRATION = 3600;
 
-    protected Integer refreshTokenExpiration = null;
-    protected Integer accessTokenExpiration = DEFAULT_EXPIRATION;
+    private Integer refreshTokenExpiration = null;
+    private Integer accessTokenExpiration = DEFAULT_EXPIRATION;
 
     @Override
     public Integer getRefreshTokenExpiration() {
@@ -46,5 +46,23 @@ public class JwtGeneratorConfigurationProperties implements JwtGeneratorConfigur
     @Override
     public Integer getAccessTokenExpiration() {
         return accessTokenExpiration;
+    }
+
+    /**
+     * Refresh token expiration. By default refresh tokens, do not expire.
+     * @param refreshTokenExpiration The expiration
+     */
+    public void setRefreshTokenExpiration(Integer refreshTokenExpiration) {
+        this.refreshTokenExpiration = refreshTokenExpiration;
+    }
+
+    /**
+     * Access token expiration. Default value ({@value DEFAULT_EXPIRATION}).
+     * @param accessTokenExpiration The expiration
+     */
+    public void setAccessTokenExpiration(Integer accessTokenExpiration) {
+        if (accessTokenExpiration != null) {
+            this.accessTokenExpiration = accessTokenExpiration;
+        }
     }
 }

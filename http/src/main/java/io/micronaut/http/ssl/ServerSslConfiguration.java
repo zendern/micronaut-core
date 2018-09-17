@@ -66,7 +66,7 @@ public class ServerSslConfiguration extends SslConfiguration {
     @Inject
     void setKey(@Nullable DefaultKeyConfiguration keyConfiguration) {
         if (keyConfiguration != null) {
-            this.key = keyConfiguration;
+            super.setKey(keyConfiguration);
         }
     }
 
@@ -79,7 +79,7 @@ public class ServerSslConfiguration extends SslConfiguration {
     @SuppressWarnings("unused")
     void setKeyStore(@Nullable DefaultKeyStoreConfiguration keyStoreConfiguration) {
         if (keyStoreConfiguration != null) {
-            this.keyStore = keyStoreConfiguration;
+            super.setKeyStore(keyStoreConfiguration);
         }
     }
 
@@ -92,11 +92,9 @@ public class ServerSslConfiguration extends SslConfiguration {
     @SuppressWarnings("unused")
     void setTrustStore(@Nullable DefaultTrustStoreConfiguration trustStore) {
         if (trustStore != null) {
-            this.trustStore = trustStore;
+            super.setTrustStore(trustStore);
         }
     }
-
-
 
     /**
      * The default {@link io.micronaut.http.ssl.SslConfiguration.KeyConfiguration}.
@@ -106,7 +104,6 @@ public class ServerSslConfiguration extends SslConfiguration {
     @Requires(property = ServerSslConfiguration.PREFIX + "." + KeyConfiguration.PREFIX)
     public static class DefaultKeyConfiguration extends KeyConfiguration {
     }
-
 
     /**
      * The default {@link io.micronaut.http.ssl.SslConfiguration.KeyStoreConfiguration}.

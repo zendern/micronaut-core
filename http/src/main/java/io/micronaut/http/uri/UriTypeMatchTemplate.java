@@ -17,7 +17,7 @@
 package io.micronaut.http.uri;
 
 import java.math.BigDecimal;
-import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
@@ -44,14 +44,15 @@ public class UriTypeMatchTemplate extends UriMatchTemplate {
     }
 
     /**
-     * @param templateString The template
-     * @param segments       The segments
-     * @param matchPattern   The match pattern
-     * @param variableTypes  The variable types
-     * @param variables      The variables
+     * @param templateString    The template
+     * @param segments          The segments
+     * @param matchPattern      The match pattern
+     * @param variableTypes     The variable types
+     * @param variableModifiers The variables and modifiers
+     * @param variables         The variables
      */
-    protected UriTypeMatchTemplate(CharSequence templateString, List<PathSegment> segments, Pattern matchPattern, Class[] variableTypes, String... variables) {
-        super(templateString, segments, matchPattern, variables);
+    protected UriTypeMatchTemplate(CharSequence templateString, List<PathSegment> segments, Pattern matchPattern, Class[] variableTypes, Map<String, Character> variableModifiers, String... variables) {
+        super(templateString, segments, matchPattern, variableModifiers, variables);
         this.variableTypes = variableTypes;
     }
 
@@ -77,14 +78,14 @@ public class UriTypeMatchTemplate extends UriMatchTemplate {
     @Override
     protected UriTemplateParser createParser(String templateString, Object... parserArguments) {
         this.pattern = new StringBuilder();
-        this.variableList = new ArrayList<>();
+        this.variableModifiers = new LinkedHashMap<>();
         this.variableTypes = parserArguments != null && parserArguments.length > 0 ? (Class[]) parserArguments[0] : new Class[0];
         return new TypedUriMatchTemplateParser(templateString, this);
     }
 
     @Override
-    protected UriMatchTemplate newUriMatchTemplate(CharSequence uriTemplate, List<PathSegment> newSegments, Pattern newPattern, String[] variables) {
-        return new UriTypeMatchTemplate(uriTemplate, newSegments, newPattern, variableTypes, variables);
+    protected UriMatchTemplate newUriMatchTemplate(CharSequence uriTemplate, List<PathSegment> newSegments, Pattern newPattern, String[] variables, Map<String, Character> variableModifiers) {
+        return new UriTypeMatchTemplate(uriTemplate, newSegments, newPattern, variableTypes, variableModifiers, variables);
     }
 
     /**

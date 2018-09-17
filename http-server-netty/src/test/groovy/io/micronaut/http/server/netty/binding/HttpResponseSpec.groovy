@@ -63,7 +63,9 @@ class HttpResponseSpec extends AbstractMicronautSpec {
         "status"              | HttpStatus.MOVED_PERMANENTLY  | null                       | [connection: 'close']
         "created-body"        | HttpStatus.CREATED            | '{"name":"blah","age":10}' | defaultHeaders + ['content-length': '24', 'content-type': 'application/json'] + [connection: 'close']
         "created-uri"         | HttpStatus.CREATED            | null                       | [connection: 'close', 'location': 'http://test.com']
+        "created-body-uri"    | HttpStatus.CREATED            | '{"name":"blah","age":10}' | defaultHeaders + ['content-length': '24', 'content-type': 'application/json'] + [connection: 'close', 'location': 'http://test.com']
         "accepted"            | HttpStatus.ACCEPTED           | null                       | [connection: 'close']
+        "accepted-uri"        | HttpStatus.ACCEPTED           | null                       | [connection: 'close', 'location': 'http://example.com']
         "disallow"            | HttpStatus.METHOD_NOT_ALLOWED | null                       | [connection: "close", 'allow': 'DELETE']
 
     }
@@ -96,6 +98,7 @@ class HttpResponseSpec extends AbstractMicronautSpec {
         "created-body"        | HttpStatus.CREATED           | '{"name":"blah","age":10}' | defaultHeaders + ['content-length': '24', 'content-type': 'application/json'] + [connection: 'close']
         "created-uri"         | HttpStatus.CREATED           | null                       | [connection: 'close', 'location': 'http://test.com']
         "accepted"            | HttpStatus.ACCEPTED          | null                       | [connection: 'close']
+        "accepted-uri"        | HttpStatus.ACCEPTED          | null                       | [connection: 'close', 'location': 'http://example.com']
     }
 
     void "test content encoding"() {
@@ -136,6 +139,8 @@ class HttpResponseSpec extends AbstractMicronautSpec {
 
         cleanup:
         ctx.stop()
+        server.stop()
+        server.close()
     }
 
     void "test default server header"() {
@@ -152,6 +157,8 @@ class HttpResponseSpec extends AbstractMicronautSpec {
 
         cleanup:
         ctx.stop()
+        server.stop()
+        server.close()
     }
 
     void "test default date header"() {
@@ -168,6 +175,8 @@ class HttpResponseSpec extends AbstractMicronautSpec {
 
         cleanup:
         ctx.stop()
+        server.stop()
+        server.close()
     }
 
     void "test date header turned off"() {
@@ -184,12 +193,14 @@ class HttpResponseSpec extends AbstractMicronautSpec {
 
         cleanup:
         ctx.stop()
+        server.stop()
+        server.close()
     }
 
     @Controller('/test-header')
     @Requires(property = 'spec.name', value = 'HttpResponseSpec')
     static class TestController {
-        @Get('/')
+        @Get
         HttpStatus index() {
             HttpStatus.OK
         }
