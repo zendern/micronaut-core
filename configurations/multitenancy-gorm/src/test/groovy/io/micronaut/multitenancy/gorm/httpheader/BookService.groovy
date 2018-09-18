@@ -1,7 +1,6 @@
 package io.micronaut.multitenancy.gorm.httpheader
 
 import io.micronaut.context.annotation.Requires
-import io.micronaut.security.utils.SecurityService
 
 import javax.inject.Singleton
 import java.util.concurrent.ConcurrentHashMap

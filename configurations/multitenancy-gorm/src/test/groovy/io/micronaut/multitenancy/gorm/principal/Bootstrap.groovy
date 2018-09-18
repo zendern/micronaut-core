@@ -1,5 +1,6 @@
 package io.micronaut.multitenancy.gorm.principal
 
+import grails.gorm.multitenancy.Tenants
 import io.micronaut.context.annotation.Requires
 import io.micronaut.context.event.ApplicationEventListener
 import io.micronaut.context.event.StartupEvent
@@ -16,7 +17,11 @@ class Bootstrap implements ApplicationEventListener<StartupEvent> {
     @Override
     void onApplicationEvent(StartupEvent event) {
 
-        bookService.save('sherlock', 'Sherlock diary')
-        bookService.save('watson', 'Watson diary')
+        Tenants.withId("sherlock") {
+            bookService.save('Sherlock diary')
+        }
+        Tenants.withId("watson") {
+            bookService.save('Watson diary')
+        }
     }
 }

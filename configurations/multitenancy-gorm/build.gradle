@@ -1,3 +1,8 @@
+ext {
+    h2Version = '1.4.196'
+    tomcatJdbcVersion = '8.5.28'
+}
+
 dependencies {
     compile project(":multitenancy")
     compile project(":configurations:gorm-common")
@@ -6,4 +11,10 @@ dependencies {
     testCompile project(":http-client")
     testCompile project(":security-jwt")
     testCompile project(":inject-groovy")
+
+    testCompile project(":configurations:hibernate-validator")
+    testCompile project(":configurations:hibernate-gorm")
+    testCompile "org.grails:grails-datastore-gorm-hibernate5:$gormVersion"
+    testRuntime "com.h2database:h2:$h2Version"
+    testRuntime "org.apache.tomcat:tomcat-jdbc:$tomcatJdbcVersion"
 }

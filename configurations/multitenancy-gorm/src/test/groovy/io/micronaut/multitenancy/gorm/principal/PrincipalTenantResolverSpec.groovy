@@ -63,6 +63,11 @@ class PrincipalTenantResolverSpec extends Specification {
                 'micronaut.security.enabled': true,
                 'micronaut.security.token.jwt.enabled': true,
                 'micronaut.security.token.jwt.signatures.secret.generator.secret': 'pleaseChangeThisSecretForANewOne',
+                'hibernate.hbm2ddl.auto'                      : 'create-drop',
+                'datasources.default.url'                     :'jdbc:h2:mem:principalGormDb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE',
+                'datasources.default.username'                :'sa',
+                'datasources.default.password'                :'',
+                'datasources.default.driverClassName'         :'org.h2.Driver',
         ]
 
         gormEmbeddedServer = ApplicationContext.run(EmbeddedServer, gormConfig, Environment.TEST)
