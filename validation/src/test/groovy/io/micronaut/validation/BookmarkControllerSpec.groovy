@@ -17,7 +17,6 @@ class BookmarkControllerSpec extends Specification {
     @Shared @AutoCleanup EmbeddedServer embeddedServer = ApplicationContext.run(EmbeddedServer)
     @Shared @AutoCleanup RxHttpClient client = embeddedServer.applicationContext.createBean(RxHttpClient, embeddedServer.getURL())
 
-
     void "test parameters binding"() {
         when:
         UriTemplate template = new UriTemplate("/api/bookmarks{?offset,max,sort,order}")
@@ -87,13 +86,50 @@ class BookmarkControllerSpec extends Specification {
     void "test POJO binding with valid values"() {
         when:
         UriTemplate template = new UriTemplate("/api/bookmarks/list{?sort,order,max,offset,columns*,ids*}")
-        String uri = template.expand([sort: 'href', order: 'desc', max: 2, offset: 0, columns: ['id', 'name'], ids: [1]]) // , 2
+        String uri = template.expand([sort: 'href', order: 'desc', max: 2, offset: 0, columns: ['id', 'name'], ids: [1]])
 
         then:
-        uri == '/api/bookmarks/list?sort=href&order=desc&max=2&offset=0&columns=id&columns=name&ids=1' // &ids=2
+        uri == '/api/bookmarks/list?sort=href&order=desc&max=2&offset=0&columns=id&columns=name&ids=1'
 
         when:
         HttpRequest request = HttpRequest.GET(uri)
+        HttpResponse<Map> rsp = client.toBlocking().exchange(request, Map)
+
+        then:
+        noExceptionThrown()
+        rsp.status() == HttpStatus.OK
+
+        when:
+        Map m = rsp.body()
+
+        then:
+        m
+        m.containsKey('offset')
+        m.offset == 0
+        m.containsKey('max')
+        m.max == 2
+        m.containsKey('order')
+        m.order == 'desc'
+        m.containsKey('sort')
+        m.sort == 'href'
+        m.containsKey('columns')
+        m.columns == 'id, name'
+        m.containsKey('ids')
+        m.ids == '1'
+    }
+
+    void "test POJO binding to @Body with valid values"() {
+        when:
+        PaginationCommand cmd = new PaginationCommand()
+        cmd.with {
+            sort = 'href'
+            order = 'desc'
+            max = 2
+            offset = 0
+            columns = ['id', 'name']
+            ids = [1]
+        }
+        HttpRequest request = HttpRequest.POST("/api/bookmarks/body", cmd)
         HttpResponse<Map> rsp = client.toBlocking().exchange(request, Map)
 
         then:

@@ -1,8 +1,10 @@
 package io.micronaut.validation;
 
 import io.micronaut.http.HttpStatus;
+import io.micronaut.http.annotation.Body;
 import io.micronaut.http.annotation.Controller;
 import io.micronaut.http.annotation.Get;
+import io.micronaut.http.annotation.Post;
 
 import javax.annotation.Nullable;
 import javax.validation.Valid;
@@ -26,6 +28,15 @@ public class BookmarkController {
 
     @Get("/bookmarks/list{?paginationCommand*}")
     public Map<String, Object> list(@Valid @Nullable PaginationCommand paginationCommand) {
+       return mapFromPaginationCommand(paginationCommand);
+    }
+
+    @Post("/bookmarks/body")
+    public Map<String, Object> listbody(@Body @Valid PaginationCommand paginationCommand) {
+        return mapFromPaginationCommand(paginationCommand);
+    }
+
+    private Map<String, Object> mapFromPaginationCommand(PaginationCommand paginationCommand) {
         Map<String, Object> m = new HashMap<>();
         if (paginationCommand.getIds() != null) {
             m.put("ids", paginationCommand.getIds().stream()
