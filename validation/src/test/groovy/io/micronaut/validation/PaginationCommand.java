@@ -1,6 +1,7 @@
 package io.micronaut.validation;
 
 import javax.annotation.Nullable;
+import java.util.List;
 import javax.validation.constraints.Pattern;
 import javax.validation.constraints.Positive;
 import javax.validation.constraints.PositiveOrZero;
@@ -21,6 +22,12 @@ public class PaginationCommand {
     @Nullable
     @Pattern(regexp = "asc|desc|ASC|DESC")
     private String order;
+
+    @Nullable
+    private List<String> columns;
+
+    @Nullable
+    private List<Integer> ids;
 
     @Nullable
     public Integer getOffset() {
@@ -56,5 +63,23 @@ public class PaginationCommand {
 
     public void setOrder(@Nullable String order) {
         this.order = order;
+    }
+
+    @Nullable
+    public List<String> getColumns() {
+        return columns;
+    }
+
+    public void setColumns(@Nullable List<String> columns) {
+        this.columns = columns;
+    }
+
+    @Nullable
+    public List<Integer> getIds() {
+        return ids;
+    }
+
+    public void setIds(@Nullable List<Integer> ids) {
+        this.ids = ids;
     }
 }

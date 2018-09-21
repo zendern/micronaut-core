@@ -83,4 +83,39 @@ class BookmarkControllerSpec extends Specification {
         def e = thrown(HttpClientResponseException)
         e.response.status == HttpStatus.BAD_REQUEST
     }
+
+    void "test POJO binding with valid values"() {
+        when:
+        UriTemplate template = new UriTemplate("/api/bookmarks/list{?sort,order,max,offset,columns*,ids*}")
+        String uri = template.expand([sort: 'href', order: 'desc', max: 2, offset: 0, columns: ['id', 'name'], ids: [1]]) // , 2
+
+        then:
+        uri == '/api/bookmarks/list?sort=href&order=desc&max=2&offset=0&columns=id&columns=name&ids=1' // &ids=2
+
+        when:
+        HttpRequest request = HttpRequest.GET(uri)
+        HttpResponse<Map> rsp = client.toBlocking().exchange(request, Map)
+
+        then:
+        noExceptionThrown()
+        rsp.status() == HttpStatus.OK
+
+        when:
+        Map m = rsp.body()
+
+        then:
+        m
+        m.containsKey('offset')
+        m.offset == 0
+        m.containsKey('max')
+        m.max == 2
+        m.containsKey('order')
+        m.order == 'desc'
+        m.containsKey('sort')
+        m.sort == 'href'
+        m.containsKey('columns')
+        m.columns == 'id, name'
+        m.containsKey('ids')
+        m.ids == '1'
+    }
 }
