@@ -17,11 +17,15 @@
 package io.micronaut.jackson.bind;
 
 import io.micronaut.core.bind.BeanPropertyBinder;
+import io.micronaut.core.convert.ArgumentConversionContext;
 import io.micronaut.core.convert.ConversionContext;
 import io.micronaut.core.convert.TypeConverter;
 import io.micronaut.core.naming.NameUtils;
 import io.micronaut.core.reflect.InstantiationUtils;
 
+import java.lang.reflect.Field;
+import java.util.Arrays;
+import java.util.List;
 import javax.inject.Singleton;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -53,12 +57,33 @@ public class MapToObjectConverter implements TypeConverter<Map, Object> {
             .map(object -> {
                     Map<?, ?> theMap = map;
                     Map bindMap = new LinkedHashMap(map.size());
+
+                    Field[] fieldArr = argumentFieldArr(context);
+
                     for (Map.Entry<?, ?> entry : theMap.entrySet()) {
                         Object key = entry.getKey();
-                        bindMap.put(NameUtils.decapitalize(NameUtils.dehyphenate(key.toString())), entry.getValue());
+                        String keyname = NameUtils.decapitalize(NameUtils.dehyphenate(key.toString()));
+
+                        if (entry.getValue() instanceof List &&
+                                ((List)entry.getValue()).size() == 1 &&
+                                !Arrays.stream(fieldArr)
+                                        .filter(field -> field.getName().equalsIgnoreCase(key.toString()))
+                                        .findFirst()
+                                        .map(field -> field.getType().equals(List.class)).orElse(false)) {
+                            bindMap.put(keyname, ((List)entry.getValue()).get(0));
+                        } else {
+                            bindMap.put(keyname, entry.getValue());
+                        }
                     }
                     return beanPropertyBinder.bind(object, bindMap);
                 }
             );
+    }
+
+    private Field[] argumentFieldArr(ConversionContext context) {
+        if (context instanceof ArgumentConversionContext) {
+            return ((ArgumentConversionContext) context).getArgument().getType().getDeclaredFields();
+        }
+        return new Field[0];
     }
 }
