@@ -65,22 +65,13 @@ public class ParameterAnnotationBinder<T> extends AbstractAnnotatedArgumentBinde
         AnnotationMetadata annotationMetadata = argument.getAnnotationMetadata();
         boolean hasAnnotation = annotationMetadata.hasAnnotation(QueryValue.class);
         String parameterName = annotationMetadata.getValue(QueryValue.class, String.class).orElse(argument.getName());
-        // If we need to bind all request params to command object
-        // checks if the variable is defined with modifier char *
-        // eg. ?pojo*
-        boolean bindAll = source.getAttribute(HttpAttributes.ROUTE_MATCH, UriMatchInfo.class)
-                .flatMap(umi -> umi.getVariables()
-                        .stream()
-                        .filter(v -> v.getName().equals(parameterName))
-                        .findFirst()
-                        .map(UriMatchVariable::isExploded)).orElse(false);
 
         BindingResult<T> result;
         // if the annotation is present or the HTTP method doesn't allow a request body
         // attempt to bind from request parameters. This avoids allowing the request URI to
         // be manipulated to override POST or JSON variables
         if (hasAnnotation || !permitsRequestBody) {
-            if (bindAll) {
+            if (isExploded(source, parameterName)) {
                 result = doConvert(parameters.asMap(), context);
             } else {
                 result = doBind(context, parameters, parameterName);
@@ -121,5 +112,19 @@ public class ParameterAnnotationBinder<T> extends AbstractAnnotatedArgumentBinde
             }
         }
         return result;
+    }
+
+    /**
+     * @param source The request
+     * @param parameterName the parameter Name
+     * @return
+     */
+    private boolean isExploded(HttpRequest<?> source, String parameterName) {
+        return source.getAttribute(HttpAttributes.ROUTE_MATCH, UriMatchInfo.class)
+                .flatMap(umi -> umi.getVariables()
+                        .stream()
+                        .filter(v -> v.getName().equals(parameterName))
+                        .findFirst()
+                        .map(UriMatchVariable::isExploded)).orElse(false);
     }
 }
