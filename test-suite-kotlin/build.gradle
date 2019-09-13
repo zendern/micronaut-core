@@ -15,22 +15,22 @@ dependencies {
     compile project(':http-server-netty')
     compile project(':http-client')
     compile project(':runtime')
-    testCompile "org.jetbrains.kotlin:kotlin-test-junit:$kotlinVersion"
-    testCompile "org.jetbrains.kotlin:kotlin-test:$kotlinVersion"
+    testImplementation "org.jetbrains.kotlin:kotlin-test-junit:$kotlinVersion"
+    testImplementation "org.jetbrains.kotlin:kotlin-test:$kotlinVersion"
 
-    testCompile project(":validation")
-    testCompile project(":inject")
-    testCompile dependencyVersion("jcache")
-    testCompile project(':validation')
+    testImplementation project(":validation")
+    testImplementation project(":inject")
+    testImplementation dependencyVersion("jcache")
+    testImplementation project(':validation')
     testCompileOnly project(':inject-java')
     kaptTest project(':inject-java')
     kaptTest project(':validation')
-    testCompile project(":http-client")
-    testCompile dependencyModuleVersion("micronaut.test", "micronaut-test-junit5"), {
+    testImplementation project(":http-client")
+    testImplementation dependencyModuleVersion("micronaut.test", "micronaut-test-junit5"), {
         exclude module:'micronaut-runtime'
         exclude module:'micronaut-inject'
     }
-    testCompile 'io.kotlintest:kotlintest-runner-junit5:3.3.0'
+    testImplementation 'io.kotlintest:kotlintest-runner-junit5:3.3.0'
     testRuntime "org.junit.jupiter:junit-jupiter-engine:$junit5Version"
 }
 

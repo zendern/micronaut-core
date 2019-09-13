@@ -10,7 +10,7 @@ dependencies {
     compileOnly "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlinVersion"
     compileOnly dependencyVersion("validation")
 
-    testCompile dependencyVersion("validation")
-    testCompile project(":inject-groovy")
-    testCompile "com.github.stefanbirkner:system-rules:$systemRulesVersion"
+    testImplementation dependencyVersion("validation")
+    testImplementation project(":inject-groovy")
+    testImplementation "com.github.stefanbirkner:system-rules:$systemRulesVersion"
 }
