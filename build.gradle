@@ -569,7 +569,7 @@ subprojects { Project subproject ->
         isBuildSnapshot = version.toString().endsWith("-SNAPSHOT")
     }
 
-    if (subproject.name == "configurations") {
+    if (subproject.name == "configurations" || subproject.name.contains("bom")) {
         return
     }
 
@@ -585,7 +585,7 @@ subprojects { Project subproject ->
         maven { url "https://repo.grails.org/grails/core" }
     }
 
-    if (subproject.name.startsWith("examples")) {
+    if (subproject.name.startsWith("examples") || subproject.name.contains("bom")) {
         // apply plugin:"org.grails.grails-web"
     } else {
         apply plugin: "groovy"
