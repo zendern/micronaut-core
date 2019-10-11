@@ -1,3 +1,17 @@
+/**
+ * To use this when setting up Travis run the following commands to encrypt
+ * the necessary environment variables for publishing to work
+ *
+ * $ travis encrypt SIGNING_PASSPHRASE=...
+ * $ travis encrypt SONATYPE_USERNAME=...
+ * $ travis encrypt SONATYPE_PASSWORD=...
+ * $ travis encrypt ARTIFACTORY_USERNAME=...
+ * $ travis encrypt ARTIFACTORY_PASSWORD=...
+ * $ travis encrypt BINTRAY_USER=...
+ * $ travis encrypt BINTRAY_KEY=...
+ *
+ */
+
 buildscript {
     repositories {
         maven { url "https://repo.grails.org/grails/core" }
@@ -13,18 +27,27 @@ import static groovyx.net.http.ContentType.*
 
 apply plugin: 'maven-publish'
 //apply plugin: 'com.jfrog.bintray'
-
-task sourcesJar(type: Jar, dependsOn: classes) {
-    archiveClassifier = 'sources'
-    from sourceSets.main.allSource
-}
-
-task javadocJar(type: Jar) {
-    archiveClassifier = 'javadoc'
-    from javadoc.destinationDir
-}
+apply plugin: 'com.bmuschko.nexus'
 
 publishing {
+    repositories {
+        maven {
+            credentials {
+                def ossUser = System.getenv("SONATYPE_USERNAME") ?: project.hasProperty("sonatypeOssUsername") ? project.sonatypeOssUsername : ''
+                def ossPass = System.getenv("SONATYPE_PASSWORD") ?: project.hasProperty("sonatypeOssPassword") ? project.sonatypeOssPassword : ''
+
+                username = ossUser
+                password = ossPass
+            }
+            if(isBuildSnapshot) {
+                url  "https://oss.sonatype.org/content/repositories/snapshots"
+            }
+            else {
+                url "https://repo.micronaut.io/artifactory/libs-releases-local"
+            }
+        }
+    }
+
     publications {
         mavenJava(MavenPublication) {
             artifactId "micronaut-${project.name}"
