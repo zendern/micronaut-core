@@ -1,4 +1,7 @@
-shadowJar.enabled = true
+ext {
+    shadowJarEnabled = true
+}
+
 shadowJar {
     exclude "module-info.class"
 }
@@ -14,4 +17,6 @@ dependencies {
     shadowCompile "org.ow2.asm:asm-tree:$asmVersion"
     shadowCompile "com.github.ben-manes.caffeine:caffeine:$caffeineVersion"
 }
+
+
 

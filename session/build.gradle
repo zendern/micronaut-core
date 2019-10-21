@@ -1,4 +1,6 @@
-shadowJar.enabled = true
+ext {
+    shadowJarEnabled = true
+}
 dependencies {
     api project(":runtime")
     api project(":http")
